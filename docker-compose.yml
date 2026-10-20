@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine  # Легковесная версия, быстро качается
+    container_name: alfa-postgres
+    environment:
+      POSTGRES_DB: alfa_credit       # Имя базы
+      POSTGRES_USER: alfa            # Логин
+      POSTGRES_PASSWORD: alfa_2026   # Пароль (простой для хакатона)
+    ports:
+      - "5432:5432"                  # Проброс порта на твой Mac / сервер
+    volumes:
+      - pg_data:/var/lib/postgresql/data # Чтобы данные не стирались при перезапуске
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alfa -d alfa_credit"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pg_data:
