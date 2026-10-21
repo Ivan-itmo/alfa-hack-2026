@@ -1,23 +1,46 @@
-version: '3.8'
-
 services:
   postgres:
-    image: postgres:16-alpine  # Легковесная версия, быстро качается
-    container_name: alfa-postgres
+    image: postgres:16-alpine
     environment:
-      POSTGRES_DB: alfa_credit       # Имя базы
-      POSTGRES_USER: alfa            # Логин
-      POSTGRES_PASSWORD: alfa_2026   # Пароль (простой для хакатона)
+      POSTGRES_DB: ${DB_NAME:-alfa_credit}
+      POSTGRES_USER: ${DB_USER:-alfa}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-alfa_2026}
     ports:
-      - "5432:5432"                  # Проброс порта на твой Mac / сервер
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
-      - pg_data:/var/lib/postgresql/data # Чтобы данные не стирались при перезапуске
+      - pg_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U alfa -d alfa_credit"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
+      retries: 10
+
+  backend:
+    build: .
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: ${DB_USER:-alfa}
+      DB_PASSWORD: ${DB_PASSWORD:-alfa_2026}
+      DB_NAME: ${DB_NAME:-alfa_credit}
+      DB_SSLMODE: disable
+      JWT_SECRET: ${JWT_SECRET:?Скопируйте .env.example в .env и задайте JWT_SECRET}
+      PORT: "8080"
+      GIN_MODE: release
+    ports:
+      - "${PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
       retries: 5
+      start_period: 30s
+    stop_grace_period: 15s
 
 volumes:
   pg_data:

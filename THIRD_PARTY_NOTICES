@@ -1,0 +1,18 @@
+Сторонние компоненты прототипа
+
+Go — BSD-3-Clause
+Gin (github.com/gin-gonic/gin) — MIT
+GORM (gorm.io/gorm), драйвер PostgreSQL (gorm.io/driver/postgres) — MIT
+JWT (github.com/golang-jwt/jwt/v5) — MIT
+bcrypt (golang.org/x/crypto) — BSD-3-Clause
+Dotenv (github.com/joho/godotenv) — MIT
+PostgreSQL — PostgreSQL License
+Alpine Linux — лицензии входящих пакетов
+
+Полный список транзитивных Go-зависимостей зафиксирован в go.mod/go.sum;
+лицензии сохраняются в исходных модулях соответствующих авторов.
+Данные компаний, пользователей, заявок и новостей созданы синтетически.
+Платные сервисы, LLM, внешние датасеты и банковские интеграции не используются.
+Компания для нового ИНН — локальная заготовка, а не результат запроса ФНС.
+Скоринг и операции выдачи кредита в этом API пока не реализованы;
+заявка SCORING — демонстрационная запись.
