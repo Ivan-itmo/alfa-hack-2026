@@ -1,0 +1,21 @@
+# Binaries
+biz-credit-ai-server
+server
+
+# Environment
+.env
+
+# Go
+vendor/
+
+# OS
+.DS_Store
+*.swp
+*~
+
+# IDE
+.vscode/
+.idea/
+
+# Test files
+/tmp/*.json
