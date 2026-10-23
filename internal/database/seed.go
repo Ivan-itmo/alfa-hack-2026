@@ -29,9 +29,9 @@ func SeedDatabase(db *gorm.DB) error {
 		}
 		date := func(s string) *time.Time { t, _ := time.Parse("2006-01-02", s); return &t }
 		companies := []models.Company{
-			{INN: "7701000001", Name: `ООО "Стабильный Бизнес"`, OKVED: "62.01", Revenue: 24000000, RegistrationDate: date("2018-04-10")},
-			{INN: "770100000002", Name: `ИП "Ритейл"`, OKVED: "47.11", Revenue: 12000000, RegistrationDate: date("2021-08-15")},
-			{INN: "770100000003", Name: `ИП "Новый"`, OKVED: "62.01", Revenue: 600000, RegistrationDate: date("2026-09-01")},
+			{INN: "7701000001", Name: `ООО "Стабильный Бизнес"`, OKVED: "62.01", Revenue: 24000000, MonthlyRevenue: 2000000, MonthlyNetProfit: 600000, AgeMonths: 102, BkiMonthlyPayment: 50000, RegistrationDate: date("2018-04-10")},
+			{INN: "770100000002", Name: `ИП "Ритейл"`, OKVED: "47.11", Revenue: 12000000, MonthlyRevenue: 1000000, MonthlyNetProfit: 180000, AgeMonths: 62, BkiMonthlyPayment: 40000, RegistrationDate: date("2021-08-15")},
+			{INN: "770100000003", Name: `ИП "Новый"`, OKVED: "62.01", Revenue: 600000, MonthlyRevenue: 50000, MonthlyNetProfit: 10000, AgeMonths: 1, RegistrationDate: date("2026-09-01")},
 		}
 		if err := tx.Create(&companies).Error; err != nil {
 			return err
@@ -51,7 +51,7 @@ func SeedDatabase(db *gorm.DB) error {
 				return err
 			}
 			if i == 0 {
-				application := models.Application{UserID: user.ID, CompanyID: companies[0].ID, Status: models.StatusScoring, Amount: 1500000, TermMonths: 12}
+				application := models.Application{UserID: user.ID, CompanyID: companies[0].ID, Status: models.StatusScoring, ProductID: 2, Purpose: "Пополнение оборотных средств", Amount: 1500000, TermMonths: 12, RequestedAmount: 1500000, RequestedTermMonths: 12}
 				if err := tx.Create(&application).Error; err != nil {
 					return err
 				}
