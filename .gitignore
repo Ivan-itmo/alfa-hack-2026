@@ -1,21 +1,38 @@
 # Binaries
 biz-credit-ai-server
 server
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/bin/
+build/
+
+# Test binary and coverage
+*.test
+*.out
+/coverage.out
+/tmp/*.json
 
 # Environment
 .env
+.env.*
+!.env.example
 
-# Go
+# Dependency directories
 vendor/
+
+# Go workspace file
+go.work
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
 
 # OS
 .DS_Store
-*.swp
-*~
-
-# IDE
-.vscode/
-.idea/
-
-# Test files
-/tmp/*.json
+Thumbs.db

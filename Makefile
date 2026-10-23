@@ -1,14 +1,14 @@
-.PHONY: build run test clean tidy
+.PHONY: build run test clean tidy deps
 
 APP_NAME=biz-credit-ai
 BUILD_DIR=./build
 
 build:
 	@mkdir -p $(BUILD_DIR)
-	go build -o $(BUILD_DIR)/$(APP_NAME) ./cmd/server/
+	go build -o $(BUILD_DIR)/$(APP_NAME) ./cmd/api/
 
 run:
-	go run ./cmd/server/
+	go run ./cmd/api/
 
 test:
 	go test ./...
