@@ -126,7 +126,17 @@ AI_TIMEOUT=30
 - **POST** `/api/auth/login` — вход в систему и получение JWT-токена.
 - **GET** `/api/dashboard` — получение информации о компании, активной кредитной заявке и персонализированной ленте новостей (требуется Bearer-токен).
 
-### 3. AI Финансовый советник
+### 3. Кредитный конвейер и кабинет риск-офицера
+
+Полные контракты, JSON-примеры, статусы, ошибки, демо-сценарии и ML-интеграция: [APPLICATIONS_API.md](APPLICATIONS_API.md).
+
+- Клиент: `GET /api/products`, `POST /api/applications`, `GET /api/applications/:id`.
+- Действия: `POST /api/applications/:id/submit`, `/counter-offer`, `/documents`, `/sign`.
+- Офицер: `GET /api/officer/applications?status=MANUAL_REVIEW`, `POST /api/officer/applications/:id/decision`.
+- `SCORING_BASE_URL=http://localhost:8000` подключает ML; пустое значение включает демо-правила.
+- В Docker укажите адрес ML, доступный из контейнера (например `http://ml:8000` для сервиса в одной сети).
+
+### 4. AI Финансовый советник
 
 #### Сравнение кредитных продуктов
 **POST** `/api/v1/advice/compare`

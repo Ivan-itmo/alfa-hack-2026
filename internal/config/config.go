@@ -23,11 +23,12 @@ type AIConfig struct {
 }
 
 type Config struct {
-	Server      ServerConfig
-	AI          AIConfig
-	DatabaseURL string
-	JWTSecret   string
-	Port        string
+	Server         ServerConfig
+	AI             AIConfig
+	ScoringBaseURL string
+	DatabaseURL    string
+	JWTSecret      string
+	Port           string
 }
 
 func Load() (*Config, error) {
@@ -99,9 +100,10 @@ func Load() (*Config, error) {
 	u.RawQuery = q.Encode()
 
 	return &Config{
-		DatabaseURL: u.String(),
-		JWTSecret:   os.Getenv("JWT_SECRET"),
-		Port:        port,
+		ScoringBaseURL: os.Getenv("SCORING_BASE_URL"),
+		DatabaseURL:    u.String(),
+		JWTSecret:      os.Getenv("JWT_SECRET"),
+		Port:           port,
 		Server: ServerConfig{
 			Addr: serverAddr,
 			Port: port,

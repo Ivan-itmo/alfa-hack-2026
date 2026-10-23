@@ -33,6 +33,29 @@ func Migrate(db *gorm.DB) error {
 		if err := tx.Exec("SELECT pg_advisory_xact_lock(?)", 2026102101).Error; err != nil {
 			return err
 		}
-		return tx.AutoMigrate(&models.Company{}, &models.User{}, &models.Application{}, &models.NewsArticle{})
+		// Drop the old constraint before widening the column and translating legacy statuses.
+		if tx.Migrator().HasTable(&models.Application{}) {
+			if err := tx.Exec("ALTER TABLE applications DROP CONSTRAINT IF EXISTS chk_applications_status").Error; err != nil {
+				return err
+			}
+			if err := tx.Exec("ALTER TABLE applications ALTER COLUMN status TYPE varchar(32)").Error; err != nil {
+				return err
+			}
+			if err := tx.Exec("UPDATE applications SET status = CASE status WHEN 'SUBMITTED' THEN 'DATA_ENRICHMENT' WHEN 'SCORING' THEN 'SCORING_IN_PROGRESS' ELSE status END").Error; err != nil {
+				return err
+			}
+		}
+		if err := tx.AutoMigrate(&models.Company{}, &models.User{}, &models.Application{}, &models.NewsArticle{}, &models.ApplicationDocument{}); err != nil {
+			return err
+		}
+		if err := tx.Exec("UPDATE applications SET requested_amount = amount, requested_term_months = term_months WHERE requested_amount = 0").Error; err != nil {
+			return err
+		}
+		// Upgrade known demo fixtures even when the database was seeded before this release.
+		return tx.Exec(`UPDATE companies SET monthly_revenue = revenue / 12,
+   monthly_net_profit = CASE inn WHEN '7701000001' THEN 600000 WHEN '770100000002' THEN 180000 ELSE 10000 END,
+   age_months = CASE inn WHEN '7701000001' THEN 102 WHEN '770100000002' THEN 62 ELSE 1 END,
+   bki_monthly_payment = CASE inn WHEN '7701000001' THEN 50000 WHEN '770100000002' THEN 40000 ELSE 0 END
+   WHERE inn IN ('7701000001','770100000002','770100000003') AND monthly_revenue = 0`).Error
 	})
 }

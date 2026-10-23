@@ -7,14 +7,16 @@ import (
 	"net/http"
 
 	"biz-credit-ai/internal/auth"
+	"biz-credit-ai/internal/scoring"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"gorm.io/gorm"
 )
 
 type Handler struct {
-	DB     *gorm.DB
-	Tokens *auth.TokenManager
+	Scoring *scoring.Client
+	DB      *gorm.DB
+	Tokens  *auth.TokenManager
 }
 
 func fail(c *gin.Context, status int, message string) { c.JSON(status, gin.H{"error": message}) }

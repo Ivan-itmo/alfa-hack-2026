@@ -36,8 +36,8 @@ func (h *Handler) Dashboard(c *gin.Context) {
 	}
 	var application models.Application
 	var active *models.Application
-	err = h.DB.WithContext(c.Request.Context()).Where("user_id = ? AND company_id = ? AND status IN ?", user.ID, company.ID,
-		[]models.ApplicationStatus{models.StatusDraft, models.StatusSubmitted, models.StatusScoring}).Order("id DESC").First(&application).Error
+	err = h.DB.WithContext(c.Request.Context()).Where("user_id = ? AND company_id = ? AND status NOT IN ?", user.ID, company.ID,
+		[]models.ApplicationStatus{models.StatusRejected, models.StatusIssued, models.StatusCancelled}).Order("id DESC").First(&application).Error
 	if err == nil {
 		active = &application
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {

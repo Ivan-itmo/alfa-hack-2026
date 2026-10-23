@@ -10,6 +10,8 @@ import (
 	"biz-credit-ai/internal/handler"
 	"biz-credit-ai/internal/handlers"
 	"biz-credit-ai/internal/middleware"
+	"biz-credit-ai/internal/models"
+	"biz-credit-ai/internal/scoring"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -54,6 +56,18 @@ func NewRouter(db *gorm.DB, tokens *auth.TokenManager, cfg ...*config.Config) *g
 			},
 		}
 	}
+	h.Scoring = scoring.New(appCfg.ScoringBaseURL)
+	client := r.Group("/api", middleware.AuthMiddleware(db, tokens), handlers.RequireRole(models.RoleClient))
+	client.GET("/products", h.Products)
+	client.POST("/applications", h.CreateApplication)
+	client.GET("/applications/:id", h.GetApplication)
+	client.POST("/applications/:id/submit", h.SubmitApplication)
+	client.POST("/applications/:id/counter-offer", h.CounterOffer)
+	client.POST("/applications/:id/documents", h.UploadDocuments)
+	client.POST("/applications/:id/sign", h.SignApplication)
+	officer := r.Group("/api/officer", middleware.AuthMiddleware(db, tokens), handlers.RequireRole(models.RoleOfficer))
+	officer.GET("/applications", h.OfficerApplications)
+	officer.POST("/applications/:id/decision", h.OfficerDecision)
 	handler.RegisterRoutes(r, appCfg)
 
 	r.NoRoute(func(c *gin.Context) { c.JSON(http.StatusNotFound, gin.H{"error": "Маршрут не найден"}) })

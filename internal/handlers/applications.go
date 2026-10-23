@@ -1,0 +1,439 @@
+package handlers
+
+import (
+	"context"
+	"errors"
+	"io"
+	"net/http"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
+	"biz-credit-ai/internal/middleware"
+	"biz-credit-ai/internal/models"
+	"biz-credit-ai/internal/scoring"
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+)
+
+var errTransition = errors.New("Недопустимый переход статуса заявки")
+
+func RequireRole(role models.Role) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		user, ok := c.Get(middleware.UserContextKey)
+		u, valid := user.(models.User)
+		if !ok || !valid || u.Role != role {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Недостаточно прав"})
+			return
+		}
+		c.Next()
+	}
+}
+func (h *Handler) Products(c *gin.Context) { c.JSON(200, gin.H{"products": models.Products()}) }
+func (h *Handler) applicationQuery(c *gin.Context, db *gorm.DB) *gorm.DB {
+	user := c.MustGet(middleware.UserContextKey).(models.User)
+	if user.Role == models.RoleClient {
+		if user.INN == nil {
+			return db.Where("1 = 0")
+		}
+		return db.Where("user_id = ? AND company_id IN (?)", user.ID, db.Session(&gorm.Session{NewDB: true}).Model(&models.Company{}).Select("id").Where("inn = ?", *user.INN))
+	}
+	return db
+}
+func appID(c *gin.Context) (uint, bool) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil || id == 0 {
+		fail(c, 400, "Некорректный ID заявки")
+		return 0, false
+	}
+	return uint(id), true
+}
+func appError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		fail(c, 404, "Заявка не найдена")
+	case errors.Is(err, errTransition):
+		fail(c, 409, errTransition.Error())
+	default:
+		fail(c, 500, "Не удалось обработать заявку")
+	}
+}
+func (h *Handler) CreateApplication(c *gin.Context) {
+	var req struct {
+		ProductID  uint   `json:"product_id" binding:"required"`
+		Purpose    string `json:"purpose" binding:"required"`
+		Amount     int64  `json:"amount" binding:"required"`
+		TermMonths int    `json:"term_months" binding:"required"`
+	}
+	if !bindJSON(c, &req) {
+		return
+	}
+	product, ok := models.FindProduct(req.ProductID)
+	req.Purpose = strings.TrimSpace(req.Purpose)
+	if !ok || req.Amount < product.MinAmount || req.Amount > product.MaxAmount || req.TermMonths < product.MinTermMonths || req.TermMonths > product.MaxTermMonths || req.Purpose == "" || len(req.Purpose) > 2000 {
+		fail(c, 400, "Проверьте продукт, цель, сумму и срок по каталогу")
+		return
+	}
+	user := c.MustGet(middleware.UserContextKey).(models.User)
+	if user.INN == nil {
+		fail(c, 404, "Компания не найдена")
+		return
+	}
+	var company models.Company
+	if err := h.DB.WithContext(c.Request.Context()).Where("inn = ?", *user.INN).First(&company).Error; err != nil {
+		appError(c, err)
+		return
+	}
+	app := models.Application{UserID: user.ID, CompanyID: company.ID, ProductID: product.ID, Purpose: req.Purpose, Status: models.StatusDraft, Amount: req.Amount, TermMonths: req.TermMonths, RequestedAmount: req.Amount, RequestedTermMonths: req.TermMonths}
+	if err := h.DB.WithContext(c.Request.Context()).Create(&app).Error; err != nil {
+		appError(c, err)
+		return
+	}
+	c.JSON(201, app)
+}
+func (h *Handler) GetApplication(c *gin.Context) {
+	id, ok := appID(c)
+	if !ok {
+		return
+	}
+	var app models.Application
+	if err := h.applicationQuery(c, h.DB.WithContext(c.Request.Context())).First(&app, id).Error; err != nil {
+		appError(c, err)
+		return
+	}
+	c.JSON(200, app)
+}
+
+// All interactive mutations lock the application row and verify its current state.
+func (h *Handler) mutate(c *gin.Context, id uint, fn func(*gorm.DB, *models.Application) error) (models.Application, error) {
+	var app models.Application
+	err := h.DB.WithContext(c.Request.Context()).Transaction(func(tx *gorm.DB) error {
+		if err := h.applicationQuery(c, tx).Clauses(clause.Locking{Strength: "UPDATE"}).First(&app, id).Error; err != nil {
+			return err
+		}
+		if err := fn(tx, &app); err != nil {
+			return err
+		}
+		return tx.Save(&app).Error
+	})
+	return app, err
+}
+func (h *Handler) SubmitApplication(c *gin.Context) {
+	id, ok := appID(c)
+	if !ok {
+		return
+	}
+	app, err := h.mutate(c, id, func(tx *gorm.DB, a *models.Application) error {
+		if a.Status != models.StatusDraft {
+			return errTransition
+		}
+		a.Status = models.StatusDataEnrichment
+		return nil
+	})
+	if err != nil {
+		appError(c, err)
+		return
+	}
+	h.runScoring(c, app, false)
+}
+func (h *Handler) runScoring(c *gin.Context, app models.Application, documents bool) {
+	// Finish claimed work even if the browser disconnects, within a bounded timeout.
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(c.Request.Context()), 8*time.Second)
+	defer cancel()
+	db := h.DB.WithContext(ctx)
+	var company models.Company
+	if err := db.First(&company, app.CompanyID).Error; err != nil {
+		h.restoreClaim(db, app, documents)
+		appError(c, err)
+		return
+	}
+	// Local FNS mock enriches missing revenue/age, without overwriting supplied financials.
+	if company.MonthlyRevenue == 0 {
+		company.MonthlyRevenue = company.Revenue / 12
+	}
+	if company.AgeMonths == 0 && company.RegistrationDate != nil {
+		now := time.Now()
+		company.AgeMonths = (now.Year()-company.RegistrationDate.Year())*12 + int(now.Month()-company.RegistrationDate.Month())
+		if company.AgeMonths < 0 {
+			company.AgeMonths = 0
+		}
+	}
+	product, ok := models.FindProduct(app.ProductID)
+	if !ok {
+		h.restoreClaim(db, app, documents)
+		fail(c, 500, "Продукт заявки не найден")
+		return
+	}
+	err := db.Transaction(func(tx *gorm.DB) error {
+		// Only the FNS enrichment fields are updated; the balance must not be overwritten.
+		if err := tx.Model(&company).Updates(map[string]any{"monthly_revenue": company.MonthlyRevenue, "age_months": company.AgeMonths}).Error; err != nil {
+			return err
+		}
+		r := tx.Model(&models.Application{}).Where("id = ? AND status = ?", app.ID, app.Status).Update("status", models.StatusScoring)
+		if r.Error != nil {
+			return r.Error
+		}
+		if r.RowsAffected != 1 {
+			return errTransition
+		}
+		return nil
+	})
+	if err != nil {
+		h.restoreClaim(db, app, documents)
+		appError(c, err)
+		return
+	}
+	input := scoring.Request{CompanyINN: company.INN, MonthlyRevenue: company.MonthlyRevenue, MonthlyNetProfit: company.MonthlyNetProfit, CompanyAgeMonths: company.AgeMonths, RequestedAmount: app.RequestedAmount, RequestedTermMonths: app.RequestedTermMonths, ProductRate: product.InterestRate, BKIMonthlyPayment: company.BkiMonthlyPayment, BKIDelinquencyDays: company.BkiDelinquencyDays, HasBankruptcy: company.HasBankruptcy}
+	result, source := h.Scoring.Evaluate(ctx, input, documents)
+	if (result.Decision == models.StatusApproved || result.Decision == models.StatusCounterOffer) && (result.ApprovedTermMonths < product.MinTermMonths || result.ApprovedTermMonths > product.MaxTermMonths || result.ApprovedAmount < product.MinAmount) {
+		result = scoring.Fallback(input, documents)
+		source = "fallback"
+	}
+	// Persist with a fresh bounded context even when an ML call exhausted its deadline.
+	saveCtx, saveCancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
+	defer saveCancel()
+	app.Status = result.Decision
+	app.ApprovedAmount = result.ApprovedAmount
+	app.ApprovedTermMonths = result.ApprovedTermMonths
+	app.MonthlyPayment = result.MonthlyPayment
+	app.InterestRate = result.InterestRate
+	app.ScoreValue = result.ScoreValue
+	app.DSTI = result.DSTI
+	app.RejectionReason = result.RejectionReason
+	app.AIExplanation = result.AIExplanation
+	app.ScoringSource = source
+	r := h.DB.WithContext(saveCtx).Model(&models.Application{}).Where("id = ? AND status = ?", app.ID, models.StatusScoring).Select("status", "approved_amount", "approved_term_months", "monthly_payment", "interest_rate", "score_value", "dsti", "rejection_reason", "ai_explanation", "scoring_source").Updates(&app)
+	if r.Error != nil {
+		appError(c, r.Error)
+		return
+	}
+	if r.RowsAffected != 1 {
+		appError(c, errTransition)
+		return
+	}
+	if err := h.DB.WithContext(saveCtx).First(&app, app.ID).Error; err != nil {
+		appError(c, err)
+		return
+	}
+	c.JSON(200, app)
+}
+func (h *Handler) restoreClaim(db *gorm.DB, app models.Application, documents bool) {
+	status := models.StatusDraft
+	if documents {
+		status = models.StatusDocsRequired
+	}
+	db.Model(&models.Application{}).Where("id = ? AND status = ?", app.ID, app.Status).Update("status", status)
+}
+func (h *Handler) CounterOffer(c *gin.Context) {
+	var req struct {
+		Action string `json:"action" binding:"required,oneof=accept reject"`
+	}
+	if !bindJSON(c, &req) {
+		return
+	}
+	id, ok := appID(c)
+	if !ok {
+		return
+	}
+	app, err := h.mutate(c, id, func(tx *gorm.DB, a *models.Application) error {
+		if a.Status != models.StatusCounterOffer {
+			return errTransition
+		}
+		a.Status = models.StatusCancelled
+		if req.Action == "accept" {
+			a.Status = models.StatusApproved
+		}
+		return nil
+	})
+	if err != nil {
+		appError(c, err)
+		return
+	}
+	c.JSON(200, app)
+}
+func (h *Handler) UploadDocuments(c *gin.Context) {
+	id, ok := appID(c)
+	if !ok {
+		return
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 6<<20)
+	if err := c.Request.ParseMultipartForm(6 << 20); err != nil {
+		var large *http.MaxBytesError
+		if errors.As(err, &large) {
+			fail(c, 413, "Максимальный размер запроса 6 МиБ")
+		} else {
+			fail(c, 400, "Ожидается multipart/form-data с полем file")
+		}
+		return
+	}
+	defer c.Request.MultipartForm.RemoveAll()
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		fail(c, 400, "Требуется файл в поле file")
+		return
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, (5<<20)+1))
+	if err != nil || len(data) == 0 {
+		fail(c, 400, "Файл пуст или недоступен")
+		return
+	}
+	if len(data) > 5<<20 {
+		fail(c, 413, "Максимальный размер файла 5 МиБ")
+		return
+	}
+	app, err := h.mutate(c, id, func(tx *gorm.DB, a *models.Application) error {
+		if a.Status != models.StatusDocsRequired {
+			return errTransition
+		}
+		doc := models.ApplicationDocument{ApplicationID: id, Filename: filepath.Base(header.Filename), Data: data}
+		if err := tx.Create(&doc).Error; err != nil {
+			return err
+		}
+		a.Status = models.StatusDocsUploaded
+		return nil
+	})
+	if err != nil {
+		appError(c, err)
+		return
+	}
+	h.runScoring(c, app, true)
+}
+func (h *Handler) SignApplication(c *gin.Context) {
+	var req struct {
+		Code string `json:"code" binding:"required"`
+	}
+	if !bindJSON(c, &req) {
+		return
+	}
+	if req.Code != "1234" {
+		fail(c, 400, "Демонстрационный код подписания: 1234")
+		return
+	}
+	id, ok := appID(c)
+	if !ok {
+		return
+	}
+	app, err := h.mutate(c, id, func(tx *gorm.DB, a *models.Application) error {
+		if a.Status != models.StatusApproved || a.ApprovedAmount <= 0 {
+			return errTransition
+		}
+		a.Status = models.StatusPendingSignature
+		if err := tx.Model(a).Update("status", a.Status).Error; err != nil {
+			return err
+		}
+		r := tx.Model(&models.Company{}).Where("id = ?", a.CompanyID).Update("balance", gorm.Expr("balance + ?", a.ApprovedAmount))
+		if r.Error != nil {
+			return r.Error
+		}
+		if r.RowsAffected != 1 {
+			return gorm.ErrRecordNotFound
+		}
+		a.Status = models.StatusIssued
+		return nil
+	})
+	if err != nil {
+		appError(c, err)
+		return
+	}
+	c.JSON(200, app)
+}
+func (h *Handler) OfficerApplications(c *gin.Context) {
+	query := h.DB.WithContext(c.Request.Context()).Model(&models.Application{})
+	if raw := c.Query("status"); raw != "" {
+		statuses := strings.Split(raw, ",")
+		for _, s := range statuses {
+			if !models.ApplicationStatus(s).Valid() {
+				fail(c, 400, "Неизвестный статус")
+				return
+			}
+		}
+		query = query.Where("status IN ?", statuses)
+	}
+	apps := make([]models.Application, 0)
+	if err := query.Order("id DESC").Find(&apps).Error; err != nil {
+		appError(c, err)
+		return
+	}
+	c.JSON(200, gin.H{"applications": apps})
+}
+func (h *Handler) OfficerDecision(c *gin.Context) {
+	var req struct {
+		Decision   models.ApplicationStatus `json:"decision" binding:"required,oneof=APPROVED COUNTER_OFFER REJECTED DOCS_REQUIRED"`
+		Amount     *int64                   `json:"amount"`
+		TermMonths *int                     `json:"term_months"`
+		Comment    string                   `json:"comment" binding:"required"`
+	}
+	if !bindJSON(c, &req) {
+		return
+	}
+	req.Comment = strings.TrimSpace(req.Comment)
+	if req.Comment == "" || len(req.Comment) > 10000 {
+		fail(c, 400, "Требуется комментарий до 10000 байт")
+		return
+	}
+	id, ok := appID(c)
+	if !ok {
+		return
+	}
+	invalidTerms := errors.New("invalid terms")
+	app, err := h.mutate(c, id, func(tx *gorm.DB, a *models.Application) error {
+		switch a.Status {
+		case models.StatusScoring, models.StatusManualReview, models.StatusDocsRequired, models.StatusCounterOffer, models.StatusApproved, models.StatusRejected:
+		default:
+			return errTransition
+		}
+		p, ok := models.FindProduct(a.ProductID)
+		if !ok {
+			return invalidTerms
+		}
+		a.ApprovedAmount = 0
+		a.ApprovedTermMonths = 0
+		a.MonthlyPayment = 0
+		a.RejectionReason = ""
+		if req.Decision == models.StatusApproved || req.Decision == models.StatusCounterOffer {
+			amount, term := a.RequestedAmount, a.RequestedTermMonths
+			if req.Amount != nil {
+				amount = *req.Amount
+			}
+			if req.TermMonths != nil {
+				term = *req.TermMonths
+			}
+			if amount < p.MinAmount || amount > p.MaxAmount || amount > a.RequestedAmount || term < p.MinTermMonths || term > p.MaxTermMonths {
+				return invalidTerms
+			}
+			a.ApprovedAmount = amount
+			a.ApprovedTermMonths = term
+			a.InterestRate = p.InterestRate
+			a.MonthlyPayment = scoring.Payment(amount, term, p.InterestRate)
+		} else if req.Amount != nil || req.TermMonths != nil {
+			return invalidTerms
+		}
+		var company models.Company
+		if err := tx.First(&company, a.CompanyID).Error; err != nil {
+			return err
+		}
+		a.DSTI = 0
+		if company.MonthlyNetProfit > 0 && a.MonthlyPayment > 0 {
+			a.DSTI = float64(a.MonthlyPayment+company.BkiMonthlyPayment) / float64(company.MonthlyNetProfit)
+		}
+		a.Status = req.Decision
+		a.OfficerComment = req.Comment
+		a.AIExplanation = req.Comment
+		if req.Decision == models.StatusRejected {
+			a.RejectionReason = req.Comment
+		}
+		return nil
+	})
+	if errors.Is(err, invalidTerms) {
+		fail(c, 400, "Условия решения не соответствуют продукту или заявке")
+		return
+	}
+	if err != nil {
+		appError(c, err)
+		return
+	}
+	c.JSON(200, app)
+}
