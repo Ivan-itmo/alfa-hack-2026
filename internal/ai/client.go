@@ -28,6 +28,10 @@ type ChatMessage struct {
 }
 
 // ChatCompletionRequest is the request body for chat completions
+//
+// Модель gemma4:12b запущена на общем эндпоинте http://10.154.0.1:8080/v1
+// с отключённым на стороне сервера reasoning, поэтому ответ приходит сразу в
+// поле content и дополнительных флагов генерации не требуется.
 type ChatCompletionRequest struct {
 	Model       string        `json:"model"`
 	Messages    []ChatMessage `json:"messages"`
@@ -49,9 +53,8 @@ type Choice struct {
 
 // Message represents the assistant's message
 type Message struct {
-	Role             string `json:"role"`
-	Content          string `json:"content"`
-	ReasoningContent string `json:"reasoning_content,omitempty"`
+	Role    string `json:"role"`
+	Content string `json:"content"`
 }
 
 // APIError represents an API error
@@ -125,11 +128,6 @@ func (c *OpenAICompatibleClient) Chat(ctx context.Context, messages []ChatMessag
 	}
 
 	content := apiResp.Choices[0].Message.Content
-	// Если content пустой, используем reasoning_content (Gemma возвращает ответ туда)
-	if content == "" && apiResp.Choices[0].Message.ReasoningContent != "" {
-		content = apiResp.Choices[0].Message.ReasoningContent
-	}
-
 	if content == "" {
 		return "", fmt.Errorf("empty response from AI")
 	}

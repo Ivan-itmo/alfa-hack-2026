@@ -1,18 +1,14 @@
 """Explainable AI: превращаем JSON-решение в понятный текст для клиента.
 
-Использует локальную OpenAI-совместимую LLM. Важные детали под эту модель
-(gemma4:12b):
-  * по умолчанию ответ уходит в `reasoning_content`, а `content` пустой и
-    генерация обрывается по лимиту токенов;
-  * `chat_template_kwargs={"enable_thinking": false}` отключает «размышления»,
-    после чего `content` заполняется и ответ приходит за 0.8–1.2 сек.
+Использует локальную OpenAI-совместимую LLM (gemma4:12b) на общем эндпоинте
+http://10.154.0.1:8080/v1. Reasoning на сервере отключён, поэтому ответ сразу
+приходит в поле `content`.
 Если LLM недоступна или отвечает слишком долго — генерируем шаблонное
 объяснение, чтобы сервис никогда не отдавал пустое поле ai_explanation.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 import re
 
@@ -70,8 +66,6 @@ class LLMExplainer:
             ],
             "temperature": 0.3,
             "max_tokens": 220,
-            # Ключевой флаг: без него модель уходит в reasoning и не отдаёт content.
-            "chat_template_kwargs": {"enable_thinking": False},
         }
         headers = {"Content-Type": "application/json"}
         if self.s.ai_api_key:
@@ -85,11 +79,7 @@ class LLMExplainer:
         resp.raise_for_status()
         data = resp.json()
         message = data["choices"][0]["message"]
-        content = (message.get("content") or "").strip()
-        if not content:
-            # Подстраховка: если модель всё же вернула reasoning — берём хвост.
-            content = self._tail_of_reasoning(message.get("reasoning_content") or "")
-        return content
+        return (message.get("content") or "").strip()
 
     @staticmethod
     def _build_prompt(req: EvaluateRequest, result: dict) -> str:
@@ -119,12 +109,6 @@ class LLMExplainer:
             "почему банк так поступил и что делать дальше."
         )
         return "\n".join(parts)
-
-    @staticmethod
-    def _tail_of_reasoning(text: str) -> str:
-        """Достаём финальный абзац из reasoning-текста как последний шанс."""
-        chunks = [c.strip() for c in re.split(r"\n{2,}", text) if c.strip()]
-        return chunks[-1] if chunks else ""
 
     @staticmethod
     def _clean(text: str) -> str:
