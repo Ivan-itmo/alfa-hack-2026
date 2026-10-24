@@ -1,18 +1,61 @@
-Сторонние компоненты прототипа
+# Third-Party Notices and Open Source Licenses
 
-Go — BSD-3-Clause
-Gin (github.com/gin-gonic/gin) — MIT
-GORM (gorm.io/gorm), драйвер PostgreSQL (gorm.io/driver/postgres) — MIT
-JWT (github.com/golang-jwt/jwt/v5) — MIT
-bcrypt (golang.org/x/crypto) — BSD-3-Clause
-Dotenv (github.com/joho/godotenv) — MIT
-PostgreSQL — PostgreSQL License
-Alpine Linux — лицензии входящих пакетов
+This project (BizCredit AI — Умный кредитный кабинет предпринимателя) incorporates open-source software components, libraries, and tools under their respective open-source licenses:
 
-Полный список транзитивных Go-зависимостей зафиксирован в go.mod/go.sum;
-лицензии сохраняются в исходных модулях соответствующих авторов.
-Данные компаний, пользователей, заявок и новостей созданы синтетически.
-Платные сервисы, LLM, внешние датасеты и банковские интеграции не используются.
-Компания для нового ИНН — локальная заготовка, а не результат запроса ФНС.
-Скоринг и операции выдачи кредита в этом API пока не реализованы;
-заявка SCORING — демонстрационная запись.
+## 1. Backend Core & Infrastructure
+- **Go Programming Language**
+  - License: BSD 3-Clause License
+  - https://golang.org/LICENSE
+- **Gin Web Framework (github.com/gin-gonic/gin)**
+  - License: MIT License
+  - https://github.com/gin-gonic/gin/blob/master/LICENSE
+- **GORM Object-Relational Mapping (gorm.io/gorm)**
+  - License: MIT License
+  - https://github.com/go-gorm/gorm/blob/master/LICENSE
+- **GORM PostgreSQL Driver (gorm.io/driver/postgres)**
+  - License: MIT License
+  - https://github.com/go-gorm/postgres/blob/master/LICENSE
+- **PostgreSQL Database**
+  - License: PostgreSQL License (Open Source)
+  - https://www.postgresql.org/about/licence/
+- **Golang JWT v5 (github.com/golang-jwt/jwt/v5)**
+  - License: MIT License
+  - https://github.com/golang-jwt/jwt/blob/main/LICENSE
+- **Golang Crypto / bcrypt (golang.org/x/crypto)**
+  - License: BSD 3-Clause License
+- **Godotenv (github.com/joho/godotenv)**
+  - License: MIT License
+- **Docker & Docker Compose**
+  - License: Apache License 2.0
+  - https://www.docker.com/legal/
+- **Alpine Linux (Container Base Image)**
+  - License: Mixed Open-Source (GPL, MIT, BSD)
+
+## 2. Frontend Application
+- **React 19 (react, react-dom)**
+  - License: MIT License
+  - https://github.com/facebook/react/blob/main/LICENSE
+- **Vite Build Tool (vite, @vitejs/plugin-react)**
+  - License: MIT License
+  - https://github.com/vitejs/vite/blob/main/LICENSE
+- **TypeScript**
+  - License: Apache License 2.0
+  - https://github.com/microsoft/TypeScript/blob/main/LICENSE.txt
+- **TailwindCSS**
+  - License: MIT License
+  - https://github.com/tailwindlabs/tailwindcss/blob/master/LICENSE
+- **Axios HTTP Client**
+  - License: MIT License
+  - https://github.com/axios/axios/blob/v1.x/LICENSE
+- **Nginx (Production Web Server & Reverse Proxy)**
+  - License: 2-Clause BSD-like License
+  - https://nginx.org/LICENSE
+
+---
+
+## 3. Моделирование внешних сервисов (ФНС, БКИ, Федресурс)
+
+В соответствии с требованиями и техническими ограничениями ТЗ хакатона:
+- Внешние государственные и межбанковские сервисы (API ФНС России, ЕГРЮЛ, сервисы Бюро кредитных историй / БКИ, проверка банкротств и исполнительных производств) **смоделированы локальными синтетическими моками и детерминированными бизнес-правилами**.
+- Все данные демонстрационных компаний (`7701000001`, `770100000002`, `770100000003`), финансовые показатели (ежемесячная выручка, чистая прибыль, возраст бизнеса, действующая кредитная нагрузка, дни просрочки) и демо-пользователи (`client1`, `client2`, `client3`, `officer1`) являются синтетическими тестовыми фикстурами.
+- Скоринговый модуль реализован с поддержкой вызова внешнего ML-эндпоинта (`SCORING_BASE_URL`) и автономного локального движка андеррайтинга (Fallback Rule Engine) без обращения к закрытым внешним контурам.

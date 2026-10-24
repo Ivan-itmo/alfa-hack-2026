@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -99,7 +100,7 @@ func (h *Handler) GetApplication(c *gin.Context) {
 		return
 	}
 	var app models.Application
-	if err := h.applicationQuery(c, h.DB.WithContext(c.Request.Context())).First(&app, id).Error; err != nil {
+	if err := h.applicationQuery(c, h.DB.WithContext(c.Request.Context())).Preload("Company").Preload("Documents").First(&app, id).Error; err != nil {
 		appError(c, err)
 		return
 	}
@@ -271,6 +272,9 @@ func (h *Handler) UploadDocuments(c *gin.Context) {
 	defer c.Request.MultipartForm.RemoveAll()
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
+		file, header, err = c.Request.FormFile("document")
+	}
+	if err != nil {
 		fail(c, 400, "Требуется файл в поле file")
 		return
 	}
@@ -341,7 +345,7 @@ func (h *Handler) SignApplication(c *gin.Context) {
 	c.JSON(200, app)
 }
 func (h *Handler) OfficerApplications(c *gin.Context) {
-	query := h.DB.WithContext(c.Request.Context()).Model(&models.Application{})
+	query := h.DB.WithContext(c.Request.Context()).Model(&models.Application{}).Preload("Company").Preload("Documents")
 	if raw := c.Query("status"); raw != "" {
 		statuses := strings.Split(raw, ",")
 		for _, s := range statuses {
@@ -361,16 +365,47 @@ func (h *Handler) OfficerApplications(c *gin.Context) {
 }
 func (h *Handler) OfficerDecision(c *gin.Context) {
 	var req struct {
-		Decision   models.ApplicationStatus `json:"decision" binding:"required,oneof=APPROVED COUNTER_OFFER REJECTED DOCS_REQUIRED"`
-		Amount     *int64                   `json:"amount"`
-		TermMonths *int                     `json:"term_months"`
-		Comment    string                   `json:"comment" binding:"required"`
+		Decision           string `json:"decision" binding:"required"`
+		Amount             *int64 `json:"amount"`
+		ApprovedAmount     *int64 `json:"approved_amount"`
+		CounterAmount      *int64 `json:"counter_amount"`
+		TermMonths         *int   `json:"term_months"`
+		ApprovedTermMonths *int   `json:"approved_term_months"`
+		CounterTermMonths  *int   `json:"counter_term_months"`
+		Comment            string `json:"comment"`
 	}
 	if !bindJSON(c, &req) {
 		return
 	}
+	decStr := strings.ToUpper(strings.TrimSpace(req.Decision))
+	if decStr == "APPROVE" {
+		decStr = "APPROVED"
+	}
+	if decStr == "REJECT" {
+		decStr = "REJECTED"
+	}
+	decision := models.ApplicationStatus(decStr)
+	switch decision {
+	case models.StatusApproved, models.StatusCounterOffer, models.StatusRejected, models.StatusDocsRequired:
+	default:
+		fail(c, 400, "Недопустимое решение (допустимо: APPROVED, COUNTER_OFFER, REJECTED, DOCS_REQUIRED)")
+		return
+	}
+
 	req.Comment = strings.TrimSpace(req.Comment)
-	if req.Comment == "" || len(req.Comment) > 10000 {
+	if req.Comment == "" {
+		switch decision {
+		case models.StatusApproved:
+			req.Comment = "Одобрено офицером"
+		case models.StatusRejected:
+			req.Comment = "Отклонено кредитным офицером"
+		case models.StatusCounterOffer:
+			req.Comment = "Встречное предложение кредитного офицера"
+		default:
+			req.Comment = "Решение кредитного офицера"
+		}
+	}
+	if len(req.Comment) > 10000 {
 		fail(c, 400, "Требуется комментарий до 10000 байт")
 		return
 	}
@@ -393,23 +428,41 @@ func (h *Handler) OfficerDecision(c *gin.Context) {
 		a.ApprovedTermMonths = 0
 		a.MonthlyPayment = 0
 		a.RejectionReason = ""
-		if req.Decision == models.StatusApproved || req.Decision == models.StatusCounterOffer {
-			amount, term := a.RequestedAmount, a.RequestedTermMonths
-			if req.Amount != nil {
+		if decision == models.StatusApproved || decision == models.StatusCounterOffer {
+			amount := a.RequestedAmount
+			if amount <= 0 {
+				amount = a.Amount
+			}
+			term := a.RequestedTermMonths
+			if term <= 0 {
+				term = a.TermMonths
+			}
+			if req.Amount != nil && *req.Amount > 0 {
 				amount = *req.Amount
+			} else if req.ApprovedAmount != nil && *req.ApprovedAmount > 0 {
+				amount = *req.ApprovedAmount
+			} else if req.CounterAmount != nil && *req.CounterAmount > 0 {
+				amount = *req.CounterAmount
 			}
-			if req.TermMonths != nil {
+
+			if req.TermMonths != nil && *req.TermMonths > 0 {
 				term = *req.TermMonths
+			} else if req.ApprovedTermMonths != nil && *req.ApprovedTermMonths > 0 {
+				term = *req.ApprovedTermMonths
+			} else if req.CounterTermMonths != nil && *req.CounterTermMonths > 0 {
+				term = *req.CounterTermMonths
 			}
-			if amount < p.MinAmount || amount > p.MaxAmount || amount > a.RequestedAmount || term < p.MinTermMonths || term > p.MaxTermMonths {
+
+			if amount < p.MinAmount || amount > p.MaxAmount || term < p.MinTermMonths || term > p.MaxTermMonths {
+				return invalidTerms
+			}
+			if decision == models.StatusCounterOffer && a.RequestedAmount > 0 && amount > a.RequestedAmount {
 				return invalidTerms
 			}
 			a.ApprovedAmount = amount
 			a.ApprovedTermMonths = term
 			a.InterestRate = p.InterestRate
 			a.MonthlyPayment = scoring.Payment(amount, term, p.InterestRate)
-		} else if req.Amount != nil || req.TermMonths != nil {
-			return invalidTerms
 		}
 		var company models.Company
 		if err := tx.First(&company, a.CompanyID).Error; err != nil {
@@ -419,10 +472,10 @@ func (h *Handler) OfficerDecision(c *gin.Context) {
 		if company.MonthlyNetProfit > 0 && a.MonthlyPayment > 0 {
 			a.DSTI = float64(a.MonthlyPayment+company.BkiMonthlyPayment) / float64(company.MonthlyNetProfit)
 		}
-		a.Status = req.Decision
+		a.Status = decision
 		a.OfficerComment = req.Comment
 		a.AIExplanation = req.Comment
-		if req.Decision == models.StatusRejected {
+		if decision == models.StatusRejected {
 			a.RejectionReason = req.Comment
 		}
 		return nil
@@ -437,3 +490,34 @@ func (h *Handler) OfficerDecision(c *gin.Context) {
 	}
 	c.JSON(200, app)
 }
+
+func (h *Handler) DownloadDocument(c *gin.Context) {
+	id, ok := appID(c)
+	if !ok {
+		return
+	}
+	docIDStr := c.Param("doc_id")
+	docID, err := strconv.Atoi(docIDStr)
+	if err != nil || docID <= 0 {
+		fail(c, 400, "Некорректный ID документа")
+		return
+	}
+	var doc models.ApplicationDocument
+	if err := h.DB.WithContext(c.Request.Context()).Where("id = ? AND application_id = ?", docID, id).First(&doc).Error; err != nil {
+		fail(c, 404, "Документ не найден")
+		return
+	}
+	contentType := "application/octet-stream"
+	ext := strings.ToLower(filepath.Ext(doc.Filename))
+	switch ext {
+	case ".pdf":
+		contentType = "application/pdf"
+	case ".png":
+		contentType = "image/png"
+	case ".jpg", ".jpeg":
+		contentType = "image/jpeg"
+	}
+	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=%q", doc.Filename))
+	c.Data(http.StatusOK, contentType, doc.Data)
+}
+

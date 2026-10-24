@@ -47,5 +47,14 @@ services:
       start_period: 30s
     stop_grace_period: 15s
 
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
 volumes:
   pg_data:

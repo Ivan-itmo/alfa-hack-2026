@@ -82,9 +82,10 @@ type Application struct {
 	ID                  uint              `gorm:"primaryKey" json:"id"`
 	UserID              uint              `gorm:"not null;index" json:"user_id"`
 	User                User              `gorm:"constraint:OnDelete:RESTRICT" json:"-"`
-	CompanyID           uint              `gorm:"not null;index" json:"company_id"`
-	Company             Company           `gorm:"constraint:OnDelete:RESTRICT" json:"-"`
-	Status              ApplicationStatus `gorm:"size:32;not null;index;check:status IN ('DRAFT','DATA_ENRICHMENT','SCORING_IN_PROGRESS','APPROVED','COUNTER_OFFER','DOCS_REQUIRED','DOCS_UPLOADED','MANUAL_REVIEW','REJECTED','PENDING_SIGNATURE','ISSUED','CANCELLED_BY_CLIENT')" json:"status"`
+	CompanyID           uint                  `gorm:"not null;index" json:"company_id"`
+	Company             *Company              `gorm:"foreignKey:CompanyID;constraint:OnDelete:RESTRICT" json:"company,omitempty"`
+	Documents           []ApplicationDocument `gorm:"foreignKey:ApplicationID;constraint:OnDelete:RESTRICT" json:"documents,omitempty"`
+	Status              ApplicationStatus     `gorm:"size:32;not null;index;check:status IN ('DRAFT','DATA_ENRICHMENT','SCORING_IN_PROGRESS','APPROVED','COUNTER_OFFER','DOCS_REQUIRED','DOCS_UPLOADED','MANUAL_REVIEW','REJECTED','PENDING_SIGNATURE','ISSUED','CANCELLED_BY_CLIENT')" json:"status"`
 	Amount              int64             `gorm:"not null;check:amount > 0" json:"amount"`
 	TermMonths          int               `gorm:"not null;check:term_months > 0" json:"term_months"`
 }

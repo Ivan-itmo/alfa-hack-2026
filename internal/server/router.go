@@ -68,6 +68,7 @@ func NewRouter(db *gorm.DB, tokens *auth.TokenManager, cfg ...*config.Config) *g
 	officer := r.Group("/api/officer", middleware.AuthMiddleware(db, tokens), handlers.RequireRole(models.RoleOfficer))
 	officer.GET("/applications", h.OfficerApplications)
 	officer.POST("/applications/:id/decision", h.OfficerDecision)
+	r.GET("/api/applications/:id/documents/:doc_id", middleware.AuthMiddleware(db, tokens), h.DownloadDocument)
 	handler.RegisterRoutes(r, appCfg)
 
 	r.NoRoute(func(c *gin.Context) { c.JSON(http.StatusNotFound, gin.H{"error": "Маршрут не найден"}) })

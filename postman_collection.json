@@ -1,0 +1,402 @@
+{
+  "info": {
+    "_postman_id": "biz-credit-ai-collection",
+    "name": "BizCredit AI - Backend API",
+    "description": "Postman collection for BizCredit AI (Alfa-Bank Hackathon: smart credit cabinet with scoring and AI advisor)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "officerToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "applicationId",
+      "value": "1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Auth - Login client1",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "if (jsonData.token) {",
+              "    pm.collectionVariables.set('token', jsonData.token);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"client1\",\n  \"password\": \"123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        }
+      }
+    },
+    {
+      "name": "2. Dashboard (Client)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/dashboard",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "dashboard"
+          ]
+        }
+      }
+    },
+    {
+      "name": "3. Products Catalog",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/products",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "products"
+          ]
+        }
+      }
+    },
+    {
+      "name": "4. Create Application (DRAFT)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "if (jsonData.id) {",
+              "    pm.collectionVariables.set('applicationId', String(jsonData.id));",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"product_id\": 2,\n  \"purpose\": \"Пополнение оборотных средств для закупки товара\",\n  \"amount\": 1500000,\n  \"term_months\": 12\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "applications"
+          ]
+        }
+      }
+    },
+    {
+      "name": "5. Submit Application (Scoring)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/applications/{{applicationId}}/submit",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "applications",
+            "{{applicationId}}",
+            "submit"
+          ]
+        }
+      }
+    },
+    {
+      "name": "6. Sign Contract (PEP code 1234)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"1234\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/applications/{{applicationId}}/sign",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "applications",
+            "{{applicationId}}",
+            "sign"
+          ]
+        }
+      }
+    },
+    {
+      "name": "7. Auth - Login officer1",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "if (jsonData.token) {",
+              "    pm.collectionVariables.set('officerToken', jsonData.token);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"officer1\",\n  \"password\": \"123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        }
+      }
+    },
+    {
+      "name": "8. Officer - List Applications",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{officerToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/officer/applications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "officer",
+            "applications"
+          ]
+        }
+      }
+    },
+    {
+      "name": "9. Officer - Application Decision",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{officerToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"decision\": \"APPROVE\",\n  \"comment\": \"Одобрено кредитным офицером\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/officer/applications/{{applicationId}}/decision",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "officer",
+            "applications",
+            "{{applicationId}}",
+            "decision"
+          ]
+        }
+      }
+    },
+    {
+      "name": "10. Counter-Offer Response (Accept/Reject)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"action\": \"accept\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/applications/{{applicationId}}/counter-offer",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "applications",
+            "{{applicationId}}",
+            "counter-offer"
+          ]
+        }
+      }
+    },
+    {
+      "name": "11. AI Advisor - Compare Products",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"product_a\": \"overdraft\",\n  \"product_b\": \"revolving_credit\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/advice/compare",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "advice",
+            "compare"
+          ]
+        }
+      }
+    },
+    {
+      "name": "12. AI Advisor - Contextual Hint",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"client_id\": \"client_123\",\n  \"revenue\": 5000000,\n  \"net_profit\": 800000,\n  \"requested_amount\": 3000000,\n  \"requested_term\": 6,\n  \"payment_type\": \"monthly\",\n  \"credit_product\": \"term_loan\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/advice/contextual",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "advice",
+            "contextual"
+          ]
+        }
+      }
+    }
+  ]
+}

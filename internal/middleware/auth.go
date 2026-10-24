@@ -17,12 +17,18 @@ const UserContextKey = "user"
 // AuthMiddleware проверяет подпись, срок JWT и актуальность пользователя в БД.
 func AuthMiddleware(db *gorm.DB, tokens *auth.TokenManager) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		tokenStr := ""
 		parts := strings.Fields(c.GetHeader("Authorization"))
-		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Требуется Authorization: Bearer <token>"})
+		if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
+			tokenStr = parts[1]
+		} else if q := c.Query("token"); q != "" {
+			tokenStr = q
+		}
+		if tokenStr == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Требуется токен авторизации"})
 			return
 		}
-		claims, err := tokens.Parse(parts[1])
+		claims, err := tokens.Parse(tokenStr)
 		if err != nil || claims.UserID == 0 || claims.Subject != strconv.FormatUint(uint64(claims.UserID), 10) {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Недействительный или просроченный токен"})
 			return
