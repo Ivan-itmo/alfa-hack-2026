@@ -32,12 +32,14 @@ services:
       AI_MODEL: ${AI_MODEL:-gemma4:12b}
       AI_API_KEY: ${AI_API_KEY:-}
       AI_TIMEOUT: ${AI_TIMEOUT:-30}
-      SCORING_BASE_URL: ${SCORING_BASE_URL:-}
+      SCORING_BASE_URL: ${SCORING_BASE_URL:-http://scoring:8000}
     ports:
       - "${PORT:-8080}:8080"
     depends_on:
       postgres:
         condition: service_healthy
+      scoring:
+        condition: service_started
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/healthz"]
@@ -46,6 +48,24 @@ services:
       retries: 5
       start_period: 30s
     stop_grace_period: 15s
+
+  # Прозрачный движок скоринга с AI-объяснением (немного небинарных исходов).
+  scoring:
+    build:
+      context: .
+      dockerfile: Dockerfile.scoring
+    environment:
+      AI_BASE_URL: ${AI_BASE_URL:-http://10.154.0.1:8080/v1}
+      AI_MODEL: ${AI_MODEL:-gemma4:12b}
+      AI_API_KEY: ${AI_API_KEY:-}
+      # Бюджет LLM держим ниже HTTP-таймаута Go-клиента (4с), иначе бэкенд
+      # уйдёт в fallback раньше, чем сервис ответит.
+      AI_TIMEOUT: ${SCORING_AI_TIMEOUT:-2.5}
+      DSTI_APPROVE_MAX: ${DSTI_APPROVE_MAX:-0.35}
+      DSTI_COUNTER_MAX: ${DSTI_COUNTER_MAX:-0.55}
+    ports:
+      - "${SCORING_PORT:-8000}:8000"
+    restart: unless-stopped
 
   frontend:
     build:

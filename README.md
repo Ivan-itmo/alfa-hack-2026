@@ -25,11 +25,18 @@ biz-credit-ai/
 │   ├── middleware/           # Middleware авторизации (JWT Bearer)
 │   ├── models/               # GORM-модели базы данных (User, Company, Application, NewsArticle)
 │   ├── router/               # Базовый роутер
+│   ├── scoring/              # Go-клиент к сервису скоринга + demo-fallback
 │   ├── server/               # Сборка общего роутера и интеграционные тесты
 │   └── service/              # Сервисный слой AI финансовых советов
+├── scoring_service/          # Python-микросервис скоринга (FastAPI) + объяснения LLM
+│   ├── app.py                # HTTP-эндпоинт POST /api/v1/scoring/evaluate
+│   ├── engine.py             # DSTI, скоринг-балл и логика 5 небинарных исходов
+│   ├── llm.py                # Объяснение решения простым языком (fallback на шаблон)
+│   └── schemas.py            # Входной/выходной контракт API
 ├── task/                     # Материалы задания хакатона
 ├── Dockerfile                # Multi-stage сборка контейнера API
-├── docker-compose.yml        # Развертывание PostgreSQL и API сервиса
+├── Dockerfile.scoring        # Сборка контейнера сервиса скоринга
+├── docker-compose.yml        # Развертывание PostgreSQL, API, скоринга и фронтенда
 ├── Makefile                  # Команды сборки, запуска и тестирования
 ├── BACKEND_API.md            # Детальная спецификация БД и авторизации
 └── README.md
@@ -102,7 +109,30 @@ AI_BASE_URL=http://10.154.0.1:8080/v1
 AI_MODEL=gemma4:12b
 AI_API_KEY=
 AI_TIMEOUT=30
+
+# Сервис скоринга (Python). Пусто -> Go использует demo-правила.
+SCORING_BASE_URL=http://scoring:8000
+SCORING_PORT=8000
+SCORING_AI_TIMEOUT=2.5
+DSTI_APPROVE_MAX=0.35
+DSTI_COUNTER_MAX=0.55
 ```
+
+---
+
+## Сервис скоринга (Python)
+
+Отдельный микросервис (FastAPI) делает оценку риска прозрачной: считает DSTI,
+принимает **небинарное** решение (APPROVED / COUNTER_OFFER / DOCS_REQUIRED /
+MANUAL_REVIEW / REJECTED), подбирает безопасные условия и просит LLM объяснить
+решение простым языком.
+
+- **POST** `/api/v1/scoring/evaluate` — оценка заявки (контракт для Go-бэкенда).
+- **GET** `/healthz` — проверка живости.
+- Полная документация: [scoring_service/README.md](scoring_service/README.md).
+
+Go-бэкенд вызывает сервис, когда задан `SCORING_BASE_URL`; при недоступности
+автоматически откатывается на demo-правила (`internal/scoring/client.go`).
 
 ---
 
