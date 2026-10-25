@@ -45,7 +45,7 @@ func Migrate(db *gorm.DB) error {
 				return err
 			}
 		}
-		if err := tx.AutoMigrate(&models.Company{}, &models.User{}, &models.Application{}, &models.NewsArticle{}, &models.ApplicationDocument{}); err != nil {
+		if err := tx.AutoMigrate(&models.Company{}, &models.User{}, &models.Application{}, &models.NewsArticle{}, &models.ApplicationDocument{}, &models.ApplicationStatusLog{}); err != nil {
 			return err
 		}
 		if err := tx.Exec("UPDATE applications SET requested_amount = amount, requested_term_months = term_months WHERE requested_amount = 0").Error; err != nil {

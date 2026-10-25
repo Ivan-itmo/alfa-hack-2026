@@ -21,6 +21,17 @@ import (
 
 var errTransition = errors.New("Недопустимый переход статуса заявки")
 
+func logStatus(tx *gorm.DB, appID uint, from, to, comment string) {
+	log := models.ApplicationStatusLog{
+		ApplicationID: appID,
+		FromStatus:    from,
+		ToStatus:      to,
+		Comment:       strings.TrimSpace(comment),
+		CreatedAt:     time.Now(),
+	}
+	_ = tx.Create(&log).Error
+}
+
 func RequireRole(role models.Role) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user, ok := c.Get(middleware.UserContextKey)
@@ -92,6 +103,16 @@ func (h *Handler) CreateApplication(c *gin.Context) {
 		appError(c, err)
 		return
 	}
+	logStatus(h.DB.WithContext(c.Request.Context()), app.ID, "", string(models.StatusDraft), "Заявка создана клиентом")
+	_ = h.DB.WithContext(c.Request.Context()).
+		Preload("Company").
+		Preload("Documents").
+		Preload("StatusLogs", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at ASC, id ASC")
+		}).First(&app, app.ID)
+	if app.StatusLogs == nil {
+		app.StatusLogs = make([]models.ApplicationStatusLog, 0)
+	}
 	c.JSON(201, app)
 }
 func (h *Handler) GetApplication(c *gin.Context) {
@@ -100,9 +121,21 @@ func (h *Handler) GetApplication(c *gin.Context) {
 		return
 	}
 	var app models.Application
-	if err := h.applicationQuery(c, h.DB.WithContext(c.Request.Context())).Preload("Company").Preload("Documents").First(&app, id).Error; err != nil {
+	if err := h.applicationQuery(c, h.DB.WithContext(c.Request.Context())).
+		Preload("Company").
+		Preload("Documents").
+		Preload("StatusLogs", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at ASC, id ASC")
+		}).First(&app, id).Error; err != nil {
 		appError(c, err)
 		return
+	}
+	if app.StatusLogs == nil {
+		app.StatusLogs = make([]models.ApplicationStatusLog, 0)
+	}
+	if app.Status == models.StatusCounterOffer {
+		app.CounterAmount = app.ApprovedAmount
+		app.CounterTermMonths = app.ApprovedTermMonths
 	}
 	c.JSON(200, app)
 }
@@ -119,6 +152,17 @@ func (h *Handler) mutate(c *gin.Context, id uint, fn func(*gorm.DB, *models.Appl
 		}
 		return tx.Save(&app).Error
 	})
+	if err == nil {
+		_ = h.DB.WithContext(c.Request.Context()).
+			Preload("Company").
+			Preload("Documents").
+			Preload("StatusLogs", func(db *gorm.DB) *gorm.DB {
+				return db.Order("created_at ASC, id ASC")
+			}).First(&app, id)
+		if app.StatusLogs == nil {
+			app.StatusLogs = make([]models.ApplicationStatusLog, 0)
+		}
+	}
 	return app, err
 }
 func (h *Handler) SubmitApplication(c *gin.Context) {
@@ -130,7 +174,9 @@ func (h *Handler) SubmitApplication(c *gin.Context) {
 		if a.Status != models.StatusDraft {
 			return errTransition
 		}
+		fromStatus := string(a.Status)
 		a.Status = models.StatusDataEnrichment
+		logStatus(tx, a.ID, fromStatus, string(models.StatusScoring), "Заявка отправлена на скоринг рисков")
 		return nil
 	})
 	if err != nil {
@@ -186,7 +232,7 @@ func (h *Handler) runScoring(c *gin.Context, app models.Application, documents b
 		appError(c, err)
 		return
 	}
-	input := scoring.Request{CompanyINN: company.INN, MonthlyRevenue: company.MonthlyRevenue, MonthlyNetProfit: company.MonthlyNetProfit, CompanyAgeMonths: company.AgeMonths, RequestedAmount: app.RequestedAmount, RequestedTermMonths: app.RequestedTermMonths, ProductRate: product.InterestRate, BKIMonthlyPayment: company.BkiMonthlyPayment, BKIDelinquencyDays: company.BkiDelinquencyDays, HasBankruptcy: company.HasBankruptcy}
+	input := scoring.Request{CompanyINN: company.INN, MonthlyRevenue: company.MonthlyRevenue, MonthlyNetProfit: company.MonthlyNetProfit, CompanyAgeMonths: company.AgeMonths, RequestedAmount: app.RequestedAmount, RequestedTermMonths: app.RequestedTermMonths, ProductRate: product.InterestRate, BKIMonthlyPayment: company.BkiMonthlyPayment, BKIDelinquencyDays: company.BkiDelinquencyDays, HasBankruptcy: company.HasBankruptcy, DocumentsUploaded: documents}
 	result, source := h.Scoring.Evaluate(ctx, input, documents)
 	if (result.Decision == models.StatusApproved || result.Decision == models.StatusCounterOffer) && (result.ApprovedTermMonths < product.MinTermMonths || result.ApprovedTermMonths > product.MaxTermMonths || result.ApprovedAmount < product.MinAmount) {
 		result = scoring.Fallback(input, documents)
@@ -214,9 +260,35 @@ func (h *Handler) runScoring(c *gin.Context, app models.Application, documents b
 		appError(c, errTransition)
 		return
 	}
-	if err := h.DB.WithContext(saveCtx).First(&app, app.ID).Error; err != nil {
+
+	fromStatus := string(models.StatusScoring)
+	if documents {
+		fromStatus = string(models.StatusDocsUploaded)
+	}
+	comment := result.AIExplanation
+	if comment == "" {
+		comment = result.RejectionReason
+	}
+	if comment == "" {
+		comment = string(result.Decision)
+	}
+	logStatus(h.DB.WithContext(saveCtx), app.ID, fromStatus, string(result.Decision), comment)
+
+	if err := h.DB.WithContext(saveCtx).
+		Preload("Company").
+		Preload("Documents").
+		Preload("StatusLogs", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at ASC, id ASC")
+		}).First(&app, app.ID).Error; err != nil {
 		appError(c, err)
 		return
+	}
+	if app.StatusLogs == nil {
+		app.StatusLogs = make([]models.ApplicationStatusLog, 0)
+	}
+	if app.Status == models.StatusCounterOffer {
+		app.CounterAmount = app.ApprovedAmount
+		app.CounterTermMonths = app.ApprovedTermMonths
 	}
 	c.JSON(200, app)
 }
@@ -242,10 +314,14 @@ func (h *Handler) CounterOffer(c *gin.Context) {
 		if a.Status != models.StatusCounterOffer {
 			return errTransition
 		}
+		fromStatus := string(a.Status)
 		a.Status = models.StatusCancelled
+		comment := "Клиент отклонил встречное предложение банка"
 		if req.Action == "accept" {
 			a.Status = models.StatusApproved
+			comment = "Клиент принял встречное предложение банка"
 		}
+		logStatus(tx, a.ID, fromStatus, string(a.Status), comment)
 		return nil
 	})
 	if err != nil {
@@ -296,7 +372,9 @@ func (h *Handler) UploadDocuments(c *gin.Context) {
 		if err := tx.Create(&doc).Error; err != nil {
 			return err
 		}
+		fromStatus := string(a.Status)
 		a.Status = models.StatusDocsUploaded
+		logStatus(tx, a.ID, fromStatus, string(models.StatusDocsUploaded), "Клиент загрузил подтверждающие документы: "+doc.Filename)
 		return nil
 	})
 	if err != nil {
@@ -324,6 +402,7 @@ func (h *Handler) SignApplication(c *gin.Context) {
 		if a.Status != models.StatusApproved || a.ApprovedAmount <= 0 {
 			return errTransition
 		}
+		fromStatus := string(a.Status)
 		a.Status = models.StatusPendingSignature
 		if err := tx.Model(a).Update("status", a.Status).Error; err != nil {
 			return err
@@ -336,6 +415,7 @@ func (h *Handler) SignApplication(c *gin.Context) {
 			return gorm.ErrRecordNotFound
 		}
 		a.Status = models.StatusIssued
+		logStatus(tx, a.ID, fromStatus, string(models.StatusIssued), "Кредитный договор подписан кодом 1234. Средства зачислены на счёт компании")
 		return nil
 	})
 	if err != nil {
@@ -345,7 +425,12 @@ func (h *Handler) SignApplication(c *gin.Context) {
 	c.JSON(200, app)
 }
 func (h *Handler) OfficerApplications(c *gin.Context) {
-	query := h.DB.WithContext(c.Request.Context()).Model(&models.Application{}).Preload("Company").Preload("Documents")
+	query := h.DB.WithContext(c.Request.Context()).Model(&models.Application{}).
+		Preload("Company").
+		Preload("Documents").
+		Preload("StatusLogs", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at ASC, id ASC")
+		})
 	if raw := c.Query("status"); raw != "" {
 		statuses := strings.Split(raw, ",")
 		for _, s := range statuses {
@@ -472,12 +557,14 @@ func (h *Handler) OfficerDecision(c *gin.Context) {
 		if company.MonthlyNetProfit > 0 && a.MonthlyPayment > 0 {
 			a.DSTI = float64(a.MonthlyPayment+company.BkiMonthlyPayment) / float64(company.MonthlyNetProfit)
 		}
+		fromStatus := string(a.Status)
 		a.Status = decision
 		a.OfficerComment = req.Comment
 		a.AIExplanation = req.Comment
 		if decision == models.StatusRejected {
 			a.RejectionReason = req.Comment
 		}
+		logStatus(tx, a.ID, fromStatus, string(decision), req.Comment)
 		return nil
 	})
 	if errors.Is(err, invalidTerms) {

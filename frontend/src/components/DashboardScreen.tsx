@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api';
 import type { DashboardData } from '../types';
+import MarkdownView from './MarkdownView';
 
 interface Props {
   onNavigateToApplication: (appId?: number) => void;
@@ -153,7 +154,8 @@ export const DashboardScreen: React.FC<Props> = ({ onNavigateToApplication }) =>
 
                 {active_application.ai_explanation && (
                   <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', padding: '0.75rem', borderRadius: '8px', marginBottom: '1.25rem', fontSize: '0.85rem' }}>
-                    <strong>Оценка скоринга:</strong> {active_application.ai_explanation}
+                    <strong style={{ display: 'block', marginBottom: '0.35rem' }}>Оценка скоринга:</strong>
+                    <MarkdownView content={active_application.ai_explanation} />
                   </div>
                 )}
 

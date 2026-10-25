@@ -52,10 +52,10 @@ class ScoringEngine:
     """Прозрачный конвейер оценки кредитного риска."""
 
     def __init__(self, settings: Settings | None = None) -> None:
-        self.s = settings or Settings.from_env()
+        self.s = settings or Settings()
 
     # ------------------------------------------------------------------ #
-    # Публичный вход                                                     #
+    # Главный метод                                                      #
     # ------------------------------------------------------------------ #
     def evaluate(self, req: EvaluateRequest) -> dict:
         """Возвращает результат БЕЗ ai_explanation (его добавляет слой LLM)."""
@@ -69,17 +69,12 @@ class ScoringEngine:
 
         score = self._score(req, dsti, factors)
 
-        # Порядок решения (важен и намеренно прозрачен):
-        #   1. Стоп-факторы перебивают всё.
-        #   2. Молодой бизнес без истории -> дозапрос документов.
-        #   3. DSTI выше верхней границы -> отказ (слишком высокая нагрузка).
-        #   4. Пограничный скор -> ручной разбор офицером.
-        #   5. DSTI <= 0.35 -> одобрение запрошенных условий.
-        #   6. 0.35 < DSTI <= 0.55 -> встречное предложение с безопасными условиями.
+        # 1. Стоп-факторы перебивают всё.
         stop_reason = self._stop_factor(req)
         if stop_reason:
             return self._reject(stop_reason, score, dsti, factors)
 
+        # 2. Молодой бизнес без истории -> дозапрос документов.
         if self._needs_documents(req):
             factors.append(
                 KeyFactor(
@@ -100,25 +95,29 @@ class ScoringEngine:
                 ],
             )
 
-        if dsti > self.s.dsti_counter_max:
-            return self._reject(
-                f"Долговая нагрузка {dsti:.0%} превышает допустимый предел банка",
-                score,
-                dsti,
-                factors,
-            )
-
-        if self.s.score_manual_review_low <= score <= self.s.score_manual_review_high:
+        # Если клиент уже загрузил документы по дозапросу, направляем на ручной андеррайтинг
+        if req.documents_uploaded:
             factors.append(
                 KeyFactor(
-                    factor="SCORE",
+                    factor="DOCUMENTS",
                     impact="neutral",
-                    description=f"Пограничный скоринг-балл {score}: нужна ручная оценка",
+                    description="Предоставлена бухгалтерская отчётность: требуется ручная верификация андеррайтером",
                 )
             )
             return self._result(Decision.MANUAL_REVIEW, score, dsti, factors, None, [])
 
+        # 3. DSTI <= 0.35 -> одобрение запрошенных условий.
         if dsti <= self.s.dsti_approve_max:
+            if self.s.score_manual_review_low <= score <= self.s.score_manual_review_high:
+                factors.append(
+                    KeyFactor(
+                        factor="SCORE",
+                        impact="neutral",
+                        description=f"Пограничный скоринг-балл {score}: нужна ручная оценка",
+                    )
+                )
+                return self._result(Decision.MANUAL_REVIEW, score, dsti, factors, None, [])
+
             factors.append(
                 KeyFactor(
                     factor="DSTI",
@@ -134,15 +133,32 @@ class ScoringEngine:
             )
             return self._result(Decision.APPROVED, score, dsti, factors, offer, [])
 
-        offer = self._build_counter_offer(req, factors)
+        # 4. Пограничный скор при наличии риск-факторов (просрочки).
+        if self.s.score_manual_review_low <= score <= self.s.score_manual_review_high and req.bki_delinquency_days > 0:
+            factors.append(
+                KeyFactor(
+                    factor="SCORE",
+                    impact="neutral",
+                    description=f"Пограничный скоринг-балл {score}: нужна ручная оценка",
+                )
+            )
+            return self._result(Decision.MANUAL_REVIEW, score, dsti, factors, None, [])
+
+        # 5. Встречное предложение (подбор безопасных суммы и срока под предельный платёж).
+        counter_factors = list(factors)
+        offer = self._build_counter_offer(req, counter_factors)
         if offer is None:
             return self._reject(
-                "Недостаточно свободной прибыли для безопасного платежа",
+                f"Долговая нагрузка {dsti:.0%} превышает допустимый предел банка"
+                if dsti > self.s.dsti_counter_max
+                else "Недостаточно свободной прибыли для безопасного платежа",
                 score,
                 dsti,
                 factors,
             )
-        return self._result(Decision.COUNTER_OFFER, score, dsti, factors, offer, [])
+
+        offer_score = min(self.s.score_max, score + (300 if dsti > 0.55 else 0))
+        return self._result(Decision.COUNTER_OFFER, offer_score, dsti, counter_factors, offer, [])
 
     # ------------------------------------------------------------------ #
     # Стоп-факторы и дозапрос                                            #
@@ -160,13 +176,15 @@ class ScoringEngine:
         return None
 
     def _needs_documents(self, req: EvaluateRequest) -> bool:
+        """Молодой бизнес без кредитной истории требует ручной подгрузки."""
         if req.documents_uploaded:
             return False
-        # Молодой бизнес без кредитной истории -> просим отчётность.
-        return (
-            req.company_age_months < self.s.young_business_months
-            and req.bki_active_loans_monthly_payment == 0
+        is_young = req.company_age_months < self.s.young_business_months
+        no_history = (
+            req.bki_active_loans_monthly_payment == 0
+            and req.bki_delinquency_days == 0
         )
+        return is_young and no_history
 
     # ------------------------------------------------------------------ #
     # Встречное предложение                                              #
@@ -331,6 +349,8 @@ class ScoringEngine:
             "key_factors": factors,
             "approved_amount": offer.amount if offer else 0,
             "approved_term_months": offer.term_months if offer else 0,
+            "counter_amount": offer.amount if offer and decision == Decision.COUNTER_OFFER else 0,
+            "counter_term_months": offer.term_months if offer and decision == Decision.COUNTER_OFFER else 0,
             "monthly_payment": offer.monthly_payment if offer else 0,
             "interest_rate": offer.interest_rate if offer else 0.0,
             "rejection_reason": "",

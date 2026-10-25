@@ -69,6 +69,8 @@ type Application struct {
 	RequestedTermMonths int               `gorm:"not null;default:0" json:"requested_term_months"`
 	ApprovedAmount      int64             `gorm:"not null;default:0" json:"approved_amount"`
 	ApprovedTermMonths  int               `gorm:"not null;default:0" json:"approved_term_months"`
+	CounterAmount       int64             `gorm:"-" json:"counter_amount,omitempty"`
+	CounterTermMonths   int               `gorm:"-" json:"counter_term_months,omitempty"`
 	MonthlyPayment      int64             `gorm:"not null;default:0" json:"monthly_payment"`
 	InterestRate        float64           `gorm:"not null;default:0" json:"interest_rate"`
 	ScoreValue          float64           `gorm:"not null;default:0" json:"score_value"`
@@ -85,6 +87,7 @@ type Application struct {
 	CompanyID           uint                  `gorm:"not null;index" json:"company_id"`
 	Company             *Company              `gorm:"foreignKey:CompanyID;constraint:OnDelete:RESTRICT" json:"company,omitempty"`
 	Documents           []ApplicationDocument `gorm:"foreignKey:ApplicationID;constraint:OnDelete:RESTRICT" json:"documents,omitempty"`
+	StatusLogs          []ApplicationStatusLog `gorm:"foreignKey:ApplicationID;constraint:OnDelete:CASCADE" json:"status_logs"`
 	Status              ApplicationStatus     `gorm:"size:32;not null;index;check:status IN ('DRAFT','DATA_ENRICHMENT','SCORING_IN_PROGRESS','APPROVED','COUNTER_OFFER','DOCS_REQUIRED','DOCS_UPLOADED','MANUAL_REVIEW','REJECTED','PENDING_SIGNATURE','ISSUED','CANCELLED_BY_CLIENT')" json:"status"`
 	Amount              int64             `gorm:"not null;check:amount > 0" json:"amount"`
 	TermMonths          int               `gorm:"not null;check:term_months > 0" json:"term_months"`
@@ -105,4 +108,13 @@ type ApplicationDocument struct {
 	Filename      string      `json:"filename"`
 	Data          []byte      `gorm:"not null" json:"-"`
 	CreatedAt     time.Time   `json:"created_at"`
+}
+
+type ApplicationStatusLog struct {
+	ID            uint      `gorm:"primaryKey" json:"id"`
+	ApplicationID uint      `gorm:"index;not null" json:"application_id"`
+	FromStatus    string    `gorm:"size:32;not null;default:''" json:"from_status"`
+	ToStatus      string    `gorm:"size:32;not null" json:"to_status"`
+	Comment       string    `gorm:"type:text;not null;default:''" json:"comment"`
+	CreatedAt     time.Time `json:"created_at"`
 }

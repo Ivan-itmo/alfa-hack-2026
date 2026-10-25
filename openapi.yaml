@@ -1,0 +1,1073 @@
+openapi: 3.0.3
+info:
+  title: Alfa Biz Credit AI - API Specification
+  description: >
+    Интеллектуальная система кредитования малого и среднего бизнеса (МСБ) с использованием
+    AI-скоринга, цифрового профиля компании и автоматизированного конвейера принятия решений.
+  version: 1.0.0
+  contact:
+    name: Alfa-Bank AI Engineering Team
+
+servers:
+  - url: http://localhost:8080
+    description: Основной Go-бэкенд API
+  - url: http://localhost:8000
+    description: Python ML-сервис скоринга
+
+tags:
+  - name: Auth
+    description: Регистрация и аутентификация пользователей
+  - name: Dashboard
+    description: Главная панель клиента (финансы, новости, скоринг)
+  - name: Products
+    description: Каталог кредитных продуктов банка
+  - name: Applications
+    description: Полный жизненный цикл кредитной заявки (клиент)
+  - name: Officer
+    description: Рабочее место кредитного офицера (андеррайтинг)
+  - name: AI Advisor
+    description: Интеллектуальный финансовый консультант на базе LLM
+  - name: Scoring Service
+    description: Внутренний микросервис кредитного скоринга рисков
+  - name: System
+    description: Служебные эндпоинты проверки работоспособности
+
+paths:
+  /healthz:
+    get:
+      tags:
+        - System
+      summary: Проверка работоспособности сервиса и БД
+      responses:
+        '200':
+          description: Сервис и база данных работают штатно
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+        '503':
+          description: База данных недоступна
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: unavailable
+
+  /health:
+    get:
+      tags:
+        - System
+      summary: Проверка работоспособности сервиса AI-советника
+      responses:
+        '200':
+          description: Сервис доступен
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /api/auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Регистрация новой компании и клиента
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Успешная регистрация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Ошибка валидации данных
+        '409':
+          description: Пользователь или ИНН уже существуют
+
+  /api/auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Авторизация в системе по email и паролю
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Успешная авторизация, выдан JWT-токен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Неверные учетные данные
+
+  /api/dashboard:
+    get:
+      tags:
+        - Dashboard
+      summary: Получение данных дашборда клиента
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Данные профиля компании, доступный лимит и персонализированные новости
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardResponse'
+        '401':
+          description: Не авторизован
+
+  /api/products:
+    get:
+      tags:
+        - Products
+      summary: Каталог кредитных продуктов банка
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Список кредитных продуктов с лимитами и процентными ставками
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  products:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+
+  /api/applications:
+    post:
+      tags:
+        - Applications
+      summary: Создание новой кредитной заявки (статус DRAFT)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApplicationRequest'
+      responses:
+        '201':
+          description: Заявка успешно создана в статусе DRAFT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '400':
+          description: Параметры не соответствуют условиям продукта
+
+  /api/applications/{id}:
+    get:
+      tags:
+        - Applications
+      summary: Получение подробной информации о заявке, включая таймлайн изменений статусов
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID заявки
+      responses:
+        '200':
+          description: Полная информация о заявке с историей переходов (status_logs)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '404':
+          description: Заявка не найдена
+
+  /api/applications/{id}/submit:
+    post:
+      tags:
+        - Applications
+      summary: Отправка заявки на автоматический AI-скоринг
+      description: >
+        Переводит заявку из DRAFT в SCORING_IN_PROGRESS, обогащает данные через ФНС и БКИ,
+        запрашивает решение ML-сервиса и возвращает небинарный исход (APPROVED, COUNTER_OFFER,
+        DOCS_REQUIRED, MANUAL_REVIEW, REJECTED).
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Результат скоринга и обновленная заявка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '409':
+          description: Недопустимый статус заявки для скоринга
+
+  /api/applications/{id}/counter-offer:
+    post:
+      tags:
+        - Applications
+      summary: Реакция клиента на встречное предложение банка (принять / отклонить)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CounterOfferRequest'
+      responses:
+        '200':
+          description: Обновленный статус заявки (APPROVED при accept или CANCELLED_BY_CLIENT при reject)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+
+  /api/applications/{id}/documents:
+    post:
+      tags:
+        - Applications
+      summary: Загрузка подтверждающих бухгалтерских документов
+      description: >
+        Принимает PDF или изображения до 5 МБ в поле multipart 'file' или 'document',
+        сохраняет документ и инициирует повторный скоринг с переходом в MANUAL_REVIEW.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Файл бухгалтерской отчетности (PDF, PNG, JPG)
+      responses:
+        '200':
+          description: Документ сохранен, заявка направлена на андеррайтинг
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '413':
+          description: Превышен допустимый размер файла
+
+  /api/applications/{id}/documents/{doc_id}:
+    get:
+      tags:
+        - Applications
+      summary: Скачивание прикрепленного документа заявки
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: doc_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Бинарное содержимое файла
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+
+  /api/applications/{id}/sign:
+    post:
+      tags:
+        - Applications
+      summary: Подписание кредитного договора SMS-кодом и выдача средств
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignApplicationRequest'
+      responses:
+        '200':
+          description: Договор подписан, статус изменен на ISSUED, баланс компании пополнен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '400':
+          description: "Неверный код подтверждения (демо-код: 1234)"
+
+  /api/officer/applications:
+    get:
+      tags:
+        - Officer
+      summary: Список всех заявок банка для кредитного офицера
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Фильтр по статусу (например MANUAL_REVIEW,DOCS_REQUIRED)
+      responses:
+        '200':
+          description: Список заявок с документами, компанией и историей переходов
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  applications:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Application'
+
+  /api/officer/applications/{id}/decision:
+    post:
+      tags:
+        - Officer
+      summary: Принятие ручного решения кредитным офицером
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OfficerDecisionRequest'
+      responses:
+        '200':
+          description: Решение зафиксировано, статус заявки обновлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '400':
+          description: Некорректные параметры решения или условия кредитования
+
+  /api/v1/advice/compare:
+    post:
+      tags:
+        - AI Advisor
+      summary: Сравнение двух кредитных продуктов с помощью LLM
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - product_a
+                - product_b
+              properties:
+                product_a:
+                  type: string
+                  example: Овердрафт
+                product_b:
+                  type: string
+                  example: Оборотный кредит
+      responses:
+        '200':
+          description: Сравнительный финансовый анализ продуктов
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    example: comparison
+                  product_a:
+                    type: string
+                  product_b:
+                    type: string
+                  advice:
+                    type: string
+
+  /api/v1/advice/contextual:
+    post:
+      tags:
+        - AI Advisor
+      summary: Получение персонализированной финансовой рекомендации для клиента
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdvisorContextualRequest'
+      responses:
+        '200':
+          description: Индивидуальная рекомендация LLM
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    example: contextual_advice
+                  client:
+                    type: string
+                  advice:
+                    type: string
+
+  /api/v1/advice/explain-decision:
+    post:
+      tags:
+        - AI Advisor
+      summary: Объяснение решения банка простым языком для клиента
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdvisorDecisionRequest'
+      responses:
+        '200':
+          description: Разъяснение решения с практическими рекомендациями по улучшению показателей
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    example: decision_explanation
+                  decision:
+                    type: string
+                  explanation:
+                    type: string
+
+  /api/v1/scoring/evaluate:
+    post:
+      tags:
+        - Scoring Service
+      summary: Расчет скоринга рисков заявки (Python Microservice)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScoringEvaluateRequest'
+      responses:
+        '200':
+          description: Небинарное решение скоринга с расчетом DSTI, факторов и LLM-объяснением
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScoringEvaluateResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - company_name
+        - inn
+        - okved
+      properties:
+        email:
+          type: string
+          format: email
+          example: client@example.com
+        password:
+          type: string
+          example: secretPass123
+        company_name:
+          type: string
+          example: ООО "Технологии Будущего"
+        inn:
+          type: string
+          example: "7701234567"
+        okved:
+          type: string
+          example: "62.01"
+        revenue:
+          type: integer
+          example: 12000000
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          example: client1
+        password:
+          type: string
+          example: "123"
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        role:
+          type: string
+          enum: [client, officer]
+          example: client
+        inn:
+          type: string
+          example: "7701100001"
+        company_name:
+          type: string
+          example: ООО "Стабильный Бизнес"
+
+    DashboardResponse:
+      type: object
+      properties:
+        company_info:
+          $ref: '#/components/schemas/Company'
+        calculated_limit:
+          type: integer
+          example: 4500000
+        news:
+          type: array
+          items:
+            $ref: '#/components/schemas/NewsArticle'
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 2
+        name:
+          type: string
+          example: Оборотный кредит
+        min_amount:
+          type: integer
+          example: 300000
+        max_amount:
+          type: integer
+          example: 15000000
+        min_term_months:
+          type: integer
+          example: 3
+        max_term_months:
+          type: integer
+          example: 36
+        interest_rate:
+          type: number
+          format: float
+          example: 16.5
+        description:
+          type: string
+          example: Финансирование кассовых разрывов и пополнение оборотных средств
+
+    Company:
+      type: object
+      properties:
+        id:
+          type: integer
+        inn:
+          type: string
+          example: "7701100001"
+        name:
+          type: string
+          example: ООО "Стабильный Бизнес"
+        okved:
+          type: string
+          example: "62.01"
+        monthly_revenue:
+          type: integer
+          example: 2500000
+        monthly_net_profit:
+          type: integer
+          example: 650000
+        company_age_months:
+          type: integer
+          example: 36
+        bki_active_loans_monthly_payment:
+          type: integer
+          example: 45000
+        bki_delinquency_days:
+          type: integer
+          example: 0
+        has_bankruptcy:
+          type: boolean
+          example: false
+        balance:
+          type: integer
+          example: 5200000
+
+    ApplicationStatusLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        application_id:
+          type: integer
+          example: 42
+        from_status:
+          type: string
+          example: DRAFT
+        to_status:
+          type: string
+          example: SCORING_IN_PROGRESS
+        comment:
+          type: string
+          example: Заявка отправлена на скоринг рисков
+        created_at:
+          type: string
+          format: date-time
+          example: 2026-10-25T18:45:00Z
+
+    ApplicationDocument:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 5
+        application_id:
+          type: integer
+          example: 42
+        filename:
+          type: string
+          example: balance_2025.pdf
+        created_at:
+          type: string
+          format: date-time
+
+    Application:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 42
+        user_id:
+          type: integer
+          example: 1
+        company_id:
+          type: integer
+          example: 1
+        product_id:
+          type: integer
+          example: 2
+        purpose:
+          type: string
+          example: Пополнение оборотных средств
+        status:
+          type: string
+          enum:
+            - DRAFT
+            - DATA_ENRICHMENT
+            - SCORING_IN_PROGRESS
+            - APPROVED
+            - COUNTER_OFFER
+            - DOCS_REQUIRED
+            - DOCS_UPLOADED
+            - MANUAL_REVIEW
+            - REJECTED
+            - PENDING_SIGNATURE
+            - ISSUED
+            - CANCELLED_BY_CLIENT
+          example: APPROVED
+        amount:
+          type: integer
+          example: 1500000
+        term_months:
+          type: integer
+          example: 12
+        requested_amount:
+          type: integer
+          example: 1500000
+        requested_term_months:
+          type: integer
+          example: 12
+        approved_amount:
+          type: integer
+          example: 1500000
+        approved_term_months:
+          type: integer
+          example: 12
+        counter_amount:
+          type: integer
+          example: 1500000
+        counter_term_months:
+          type: integer
+          example: 12
+        monthly_payment:
+          type: integer
+          example: 136512
+        interest_rate:
+          type: number
+          format: float
+          example: 16.5
+        score_value:
+          type: number
+          format: float
+          example: 745.0
+        dsti:
+          type: number
+          format: float
+          example: 0.28
+        rejection_reason:
+          type: string
+          example: ""
+        ai_explanation:
+          type: string
+          example: Компания демонстрирует стабильный денежный поток и умеренный уровень долговой нагрузки.
+        officer_comment:
+          type: string
+          example: ""
+        scoring_source:
+          type: string
+          example: ml_service
+        company:
+          $ref: '#/components/schemas/Company'
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApplicationDocument'
+        status_logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApplicationStatusLog'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateApplicationRequest:
+      type: object
+      required:
+        - product_id
+        - purpose
+        - amount
+        - term_months
+      properties:
+        product_id:
+          type: integer
+          example: 2
+        purpose:
+          type: string
+          example: Пополнение оборотных средств
+        amount:
+          type: integer
+          example: 1500000
+        term_months:
+          type: integer
+          example: 12
+
+    CounterOfferRequest:
+      type: object
+      required:
+        - action
+      properties:
+        action:
+          type: string
+          enum: [accept, reject]
+          example: accept
+
+    SignApplicationRequest:
+      type: object
+      required:
+        - code
+      properties:
+        code:
+          type: string
+          example: "1234"
+
+    OfficerDecisionRequest:
+      type: object
+      required:
+        - decision
+      properties:
+        decision:
+          type: string
+          enum: [APPROVED, COUNTER_OFFER, REJECTED, DOCS_REQUIRED]
+          example: APPROVED
+        amount:
+          type: integer
+          example: 1500000
+        term_months:
+          type: integer
+          example: 12
+        comment:
+          type: string
+          example: Согласовано под поручительство основателя компании
+
+    NewsArticle:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        content:
+          type: string
+        target_okved:
+          type: string
+
+    AdvisorContextualRequest:
+      type: object
+      required:
+        - client_id
+        - company_name
+        - revenue
+        - request_amount
+      properties:
+        client_id:
+          type: string
+          example: client1
+        company_name:
+          type: string
+          example: ООО "Стабильный Бизнес"
+        revenue:
+          type: number
+          example: 30000000
+        net_profit:
+          type: number
+          example: 7800000
+        industry:
+          type: string
+          example: IT и разработка ПО
+        request_amount:
+          type: number
+          example: 2000000
+        request_term_months:
+          type: integer
+          example: 12
+        purpose:
+          type: string
+          example: Наем дополнительных разработчиков
+
+    AdvisorDecisionRequest:
+      type: object
+      required:
+        - decision_type
+        - company_name
+      properties:
+        decision_type:
+          type: string
+          enum: [APPROVED, REJECTED, COUNTER_OFFER, DOCS_REQUIRED]
+          example: COUNTER_OFFER
+        company_name:
+          type: string
+          example: ИП Смирнов
+        score:
+          type: number
+          example: 620
+        dsti:
+          type: number
+          example: 0.48
+        requested_amount:
+          type: number
+          example: 10000000
+        offered_amount:
+          type: number
+          example: 4500000
+        reason:
+          type: string
+          example: Превышение допустимого уровня долговой нагрузки
+
+    ScoringEvaluateRequest:
+      type: object
+      required:
+        - company_inn
+        - monthly_revenue
+        - monthly_net_profit
+        - company_age_months
+        - requested_amount
+        - requested_term_months
+        - product_rate
+      properties:
+        company_inn:
+          type: string
+          example: "7701100001"
+        monthly_revenue:
+          type: integer
+          example: 2500000
+        monthly_net_profit:
+          type: integer
+          example: 650000
+        company_age_months:
+          type: integer
+          example: 36
+        requested_amount:
+          type: integer
+          example: 1500000
+        requested_term_months:
+          type: integer
+          example: 12
+        product_rate:
+          type: number
+          example: 16.5
+        bki_active_loans_monthly_payment:
+          type: integer
+          example: 45000
+        bki_delinquency_days:
+          type: integer
+          example: 0
+        has_bankruptcy:
+          type: boolean
+          example: false
+        documents_uploaded:
+          type: boolean
+          example: false
+
+    KeyFactor:
+      type: object
+      properties:
+        factor:
+          type: string
+          example: DSTI
+        impact:
+          type: string
+          enum: [positive, negative, neutral]
+          example: positive
+        description:
+          type: string
+          example: Долговая нагрузка 28% находится в пределах нормы
+
+    Offer:
+      type: object
+      properties:
+        amount:
+          type: integer
+          example: 1500000
+        term_months:
+          type: integer
+          example: 12
+        monthly_payment:
+          type: integer
+          example: 136512
+        interest_rate:
+          type: number
+          example: 16.5
+
+    ScoringEvaluateResponse:
+      type: object
+      properties:
+        decision:
+          type: string
+          enum: [APPROVED, COUNTER_OFFER, DOCS_REQUIRED, MANUAL_REVIEW, REJECTED]
+          example: APPROVED
+        score_value:
+          type: integer
+          example: 745
+        dsti:
+          type: number
+          example: 0.28
+        offer:
+          $ref: '#/components/schemas/Offer'
+        required_documents:
+          type: array
+          items:
+            type: string
+        key_factors:
+          type: array
+          items:
+            $ref: '#/components/schemas/KeyFactor'
+        ai_explanation:
+          type: string
+          example: Компания демонстрирует высокий уровень финансовой надежности.
+        approved_amount:
+          type: integer
+          example: 1500000
+        approved_term_months:
+          type: integer
+          example: 12
+        counter_amount:
+          type: integer
+          example: 0
+        counter_term_months:
+          type: integer
+          example: 0
+        monthly_payment:
+          type: integer
+          example: 136512
+        interest_rate:
+          type: number
+          example: 16.5
+        rejection_reason:
+          type: string
+          example: ""

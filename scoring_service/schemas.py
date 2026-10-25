@@ -2,7 +2,7 @@
 
 Входной контракт (POST /api/v1/scoring/evaluate) соответствует заданию.
 Выходной контракт — надмножество: помимо вложенного объекта `offer`
-отдаём плоские поля (approved_amount и т.д.), которые уже ожидает
+отдаём плоские поля (approved_amount, counter_amount и т.д.), которые уже ожидает
 существующий Go-бэкенд, чтобы интеграция работала без переписывания.
 """
 
@@ -70,6 +70,8 @@ class EvaluateResponse(BaseModel):
     # Плоские поля для обратной совместимости с Go-клиентом scoring/client.go.
     approved_amount: int = 0
     approved_term_months: int = 0
+    counter_amount: int = 0
+    counter_term_months: int = 0
     monthly_payment: int = 0
     interest_rate: float = 0.0
     rejection_reason: str = ""

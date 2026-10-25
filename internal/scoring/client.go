@@ -26,6 +26,7 @@ type Request struct {
 	BKIMonthlyPayment   int64   `json:"bki_active_loans_monthly_payment"`
 	BKIDelinquencyDays  int     `json:"bki_delinquency_days"`
 	HasBankruptcy       bool    `json:"has_bankruptcy"`
+	DocumentsUploaded   bool    `json:"documents_uploaded"`
 }
 type Result struct {
 	Decision           models.ApplicationStatus `json:"decision"`
@@ -44,7 +45,7 @@ type Client struct {
 }
 
 func New(baseURL string) *Client {
-	return &Client{BaseURL: strings.TrimRight(baseURL, "/"), HTTP: &http.Client{Timeout: 4 * time.Second}}
+	return &Client{BaseURL: strings.TrimRight(baseURL, "/"), HTTP: &http.Client{Timeout: 6 * time.Second}}
 }
 func Payment(amount int64, term int, rate float64) int64 {
 	if term <= 0 || amount <= 0 {
@@ -57,6 +58,7 @@ func Payment(amount int64, term int, rate float64) int64 {
 	return int64(math.Ceil(float64(amount) * r / (1 - math.Pow(1+r, -float64(term)))))
 }
 func (c *Client) Evaluate(ctx context.Context, input Request, documentsUploaded bool) (Result, string) {
+	input.DocumentsUploaded = documentsUploaded
 	if c != nil && c.BaseURL != "" {
 		result, err := c.remote(ctx, input)
 		if err == nil {

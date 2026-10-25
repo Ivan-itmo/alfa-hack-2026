@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api';
 import type { Application } from '../types';
+import MarkdownView from './MarkdownView';
 
 export const OfficerScreen: React.FC = () => {
   const [applications, setApplications] = useState<Application[]>([]);
@@ -504,7 +505,7 @@ export const OfficerScreen: React.FC = () => {
                     🤖 Заключение AI-анализа / Пояснение скоринга:
                   </div>
                   <div style={{ fontSize: '0.9rem', color: 'var(--text-main)', lineHeight: 1.5 }}>
-                    {dossierApp.ai_explanation || dossierApp.rejection_reason || 'Автоматическая оценка рисков проведена на базе финансовых показателей компании, кредитной истории БКИ и норматива долговой нагрузки DSTI.'}
+                    <MarkdownView content={dossierApp.ai_explanation || dossierApp.rejection_reason || 'Автоматическая оценка рисков проведена на базе финансовых показателей компании, кредитной истории БКИ и норматива долговой нагрузки DSTI.'} />
                   </div>
                 </div>
               </div>

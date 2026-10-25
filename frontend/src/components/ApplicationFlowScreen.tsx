@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api';
 import type { Application, ApplicationStatus, Product } from '../types';
+import MarkdownView from './MarkdownView';
 
 interface Props {
   initialAppId?: number | null;
@@ -415,7 +416,7 @@ export const ApplicationFlowScreen: React.FC<Props> = ({ initialAppId, onNavigat
 
               {aiHint && (
                 <div style={{ marginTop: '0.75rem', fontSize: '0.9rem', color: '#4a044e', lineHeight: 1.5 }}>
-                  {aiHint}
+                  <MarkdownView content={aiHint} />
                 </div>
               )}
             </div>
@@ -479,9 +480,10 @@ export const ApplicationFlowScreen: React.FC<Props> = ({ initialAppId, onNavigat
           </div>
 
           {currentApp.ai_explanation && (
-            <div className="alert alert-info">
+            <div className="alert alert-info" style={{ marginTop: '1rem' }}>
               <div>
-                <strong>Пояснение скоринга:</strong> {currentApp.ai_explanation}
+                <strong style={{ display: 'block', marginBottom: '0.35rem' }}>🤖 Пояснение скоринга:</strong>
+                <MarkdownView content={currentApp.ai_explanation} />
               </div>
             </div>
           )}

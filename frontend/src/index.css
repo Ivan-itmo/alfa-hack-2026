@@ -476,3 +476,113 @@ tr:hover td {
   border-radius: 6px;
   margin-bottom: 0.5rem;
 }
+
+
+/* MarkdownView Component Styles */
+.markdown-view {
+  line-height: 1.5;
+  color: inherit;
+  word-break: break-word;
+}
+
+.markdown-view .markdown-h3,
+.markdown-view h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-top: 10px;
+  margin-bottom: 4px;
+}
+
+.markdown-view .markdown-h4,
+.markdown-view h4 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+.markdown-view .markdown-p,
+.markdown-view p {
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.markdown-view .markdown-p:last-child,
+.markdown-view p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-view .markdown-ul,
+.markdown-view ul {
+  list-style-type: disc;
+  padding-left: 1.25rem;
+  margin-bottom: 8px;
+}
+
+.markdown-view .markdown-ol,
+.markdown-view ol {
+  list-style-type: decimal;
+  padding-left: 1.25rem;
+  margin-bottom: 8px;
+}
+
+.markdown-view .markdown-li,
+.markdown-view li {
+  margin-bottom: 4px;
+  line-height: 1.45;
+}
+
+.markdown-view .markdown-strong,
+.markdown-view strong {
+  font-weight: 600;
+  color: #111827;
+}
+
+.markdown-view .markdown-code,
+.markdown-view code {
+  background-color: #f1f5f9;
+  color: #1e293b;
+  font-size: 0.85em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.markdown-view .markdown-table-wrapper {
+  overflow-x: auto;
+  margin: 10px 0;
+}
+
+.markdown-view .markdown-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  margin: 6px 0;
+}
+
+.markdown-view .markdown-th,
+.markdown-view th {
+  background: #f8fafc;
+  color: #1e293b;
+  font-weight: 600;
+  text-align: left;
+  padding: 6px 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.markdown-view .markdown-td,
+.markdown-view td {
+  padding: 6px 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.markdown-view .markdown-blockquote {
+  border-left: 3px solid #cbd5e1;
+  padding-left: 0.75rem;
+  margin: 6px 0;
+  color: #64748b;
+  font-style: italic;
+}
