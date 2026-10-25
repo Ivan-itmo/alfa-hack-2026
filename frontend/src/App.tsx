@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { clearAuth, getCurrentUser } from './api';
 import { ApplicationFlowScreen } from './components/ApplicationFlowScreen';
+import { ApplicationsListScreen } from './components/ApplicationsListScreen';
+import { CalculatorScreen } from './components/CalculatorScreen';
 import { DashboardScreen } from './components/DashboardScreen';
 import { LoginScreen } from './components/LoginScreen';
 import { Navbar } from './components/Navbar';
@@ -11,6 +13,7 @@ export function App() {
   const [user, setUser] = useState<User | null>(getCurrentUser());
   const [activeScreen, setActiveScreen] = useState<string>('login');
   const [targetAppId, setTargetAppId] = useState<number | null>(null);
+  const [initialParams, setInitialParams] = useState<{ amount?: number; termMonths?: number } | null>(null);
 
   useEffect(() => {
     const u = getCurrentUser();
@@ -40,8 +43,9 @@ export function App() {
     setActiveScreen('login');
   };
 
-  const handleNavigateToApplication = (appId?: number) => {
+  const handleNavigateToApplication = (appId?: number, params?: { amount?: number; termMonths?: number }) => {
     setTargetAppId(appId || null);
+    setInitialParams(params || null);
     setActiveScreen('application');
   };
 
@@ -50,7 +54,13 @@ export function App() {
       <Navbar
         user={user}
         activeScreen={activeScreen}
-        onNavigate={(screen) => setActiveScreen(screen)}
+        onNavigate={(screen) => {
+          if (screen === 'application') {
+            setTargetAppId(null);
+            setInitialParams(null);
+          }
+          setActiveScreen(screen);
+        }}
         onLogout={handleLogout}
       />
 
@@ -60,12 +70,30 @@ export function App() {
         )}
 
         {activeScreen === 'dashboard' && user && user.role === 'client' && (
-          <DashboardScreen onNavigateToApplication={handleNavigateToApplication} />
+          <DashboardScreen
+            onNavigateToApplication={handleNavigateToApplication}
+            onNavigateToCalculator={() => setActiveScreen('calculator')}
+          />
+        )}
+
+        {activeScreen === 'applications' && user && user.role === 'client' && (
+          <ApplicationsListScreen
+            onNavigateToApplication={handleNavigateToApplication}
+            onNavigateToDashboard={() => setActiveScreen('dashboard')}
+          />
+        )}
+
+        {activeScreen === 'calculator' && user && user.role === 'client' && (
+          <CalculatorScreen
+            onNavigateToApplication={handleNavigateToApplication}
+            onNavigateToDashboard={() => setActiveScreen('dashboard')}
+          />
         )}
 
         {activeScreen === 'application' && user && user.role === 'client' && (
           <ApplicationFlowScreen
             initialAppId={targetAppId}
+            initialParams={initialParams}
             onNavigateToDashboard={() => setActiveScreen('dashboard')}
           />
         )}

@@ -1,18 +1,114 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 import type { Application, ApplicationStatus, Product } from '../types';
 import MarkdownView from './MarkdownView';
 
+interface ProductConfig {
+  minAmount: number;
+  maxAmount: number;
+  stepAmount: number;
+  defaultAmount: number;
+  amountChips: { label: string; value: number }[];
+  minTerm: number;
+  maxTerm: number;
+  stepTerm: number;
+  defaultTerm: number;
+  termChips: { label: string; value: number }[];
+}
+
+const getProductConfig = (product?: Product): ProductConfig => {
+  const code = product?.code?.toLowerCase() || '';
+  const name = product?.name?.toLowerCase() || '';
+
+  if (code === 'overdraft' || name.includes('овердрафт')) {
+    return {
+      minAmount: 100000,
+      maxAmount: 5000000,
+      stepAmount: 50000,
+      defaultAmount: 1000000,
+      amountChips: [
+        { label: '300 тыс ₽', value: 300000 },
+        { label: '500 тыс ₽', value: 500000 },
+        { label: '1.5 млн ₽', value: 1500000 },
+        { label: '3 млн ₽', value: 3000000 },
+        { label: '5 млн ₽', value: 5000000 },
+      ],
+      minTerm: 1,
+      maxTerm: 12,
+      stepTerm: 1,
+      defaultTerm: 6,
+      termChips: [
+        { label: '1 мес', value: 1 },
+        { label: '3 мес', value: 3 },
+        { label: '6 мес', value: 6 },
+        { label: '12 мес', value: 12 },
+      ],
+    };
+  }
+
+  if (code === 'investment_credit' || code === 'term_loan' || name.includes('инвестиционн')) {
+    return {
+      minAmount: 500000,
+      maxAmount: 20000000,
+      stepAmount: 250000,
+      defaultAmount: 3000000,
+      amountChips: [
+        { label: '1.5 млн ₽', value: 1500000 },
+        { label: '3 млн ₽', value: 3000000 },
+        { label: '5 млн ₽', value: 5000000 },
+        { label: '10 млн ₽', value: 10000000 },
+        { label: '20 млн ₽', value: 20000000 },
+      ],
+      minTerm: 12,
+      maxTerm: 60,
+      stepTerm: 6,
+      defaultTerm: 24,
+      termChips: [
+        { label: '12 мес', value: 12 },
+        { label: '24 мес', value: 24 },
+        { label: '36 мес', value: 36 },
+        { label: '60 мес', value: 60 },
+      ],
+    };
+  }
+
+  // Default: Оборотный кредит (revolving_credit / working_capital)
+  return {
+    minAmount: 200000,
+    maxAmount: 10000000,
+    stepAmount: 100000,
+    defaultAmount: 1500000,
+    amountChips: [
+      { label: '500 тыс ₽', value: 500000 },
+      { label: '1.5 млн ₽', value: 1500000 },
+      { label: '3 млн ₽', value: 3000000 },
+      { label: '5 млн ₽', value: 5000000 },
+      { label: '10 млн ₽', value: 10000000 },
+    ],
+    minTerm: 3,
+    maxTerm: 36,
+    stepTerm: 3,
+    defaultTerm: 12,
+    termChips: [
+      { label: '6 мес', value: 6 },
+      { label: '12 мес', value: 12 },
+      { label: '24 мес', value: 24 },
+      { label: '36 мес', value: 36 },
+    ],
+  };
+};
+
 interface Props {
   initialAppId?: number | null;
+  initialParams?: { amount?: number; termMonths?: number } | null;
   onNavigateToDashboard: () => void;
 }
 
-export const ApplicationFlowScreen: React.FC<Props> = ({ initialAppId, onNavigateToDashboard }) => {
+export const ApplicationFlowScreen: React.FC<Props> = ({ initialAppId, initialParams, onNavigateToDashboard }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProductId, setSelectedProductId] = useState<number>(2); // default revolving credit
-  const [amount, setAmount] = useState<number>(1500000);
-  const [termMonths, setTermMonths] = useState<number>(12);
+  const [amount, setAmount] = useState<number>(initialParams?.amount || 1500000);
+  const [termMonths, setTermMonths] = useState<number>(initialParams?.termMonths || 12);
   const [purpose, setPurpose] = useState<string>('Пополнение оборотных средств для закупки товара');
 
   const [currentApp, setCurrentApp] = useState<Application | null>(null);
@@ -34,8 +130,89 @@ export const ApplicationFlowScreen: React.FC<Props> = ({ initialAppId, onNavigat
     loadProducts();
     if (initialAppId) {
       loadApplication(initialAppId);
+    } else {
+      setCurrentApp(null);
+      if (initialParams?.amount) setAmount(initialParams.amount);
+      if (initialParams?.termMonths) setTermMonths(initialParams.termMonths);
     }
-  }, [initialAppId]);
+  }, [initialAppId, initialParams]);
+
+  // Timeline Transition title mapper
+  const getStatusTransitionTitle = (fromStatus: string, toStatus: string, _comment?: string): string => {
+    if (!fromStatus && toStatus === 'DRAFT') return 'Создание черновика заявки';
+    if (toStatus === 'SCORING_IN_PROGRESS' || toStatus === 'DATA_ENRICHMENT') return 'Черновик ➜ Проверка скорингом';
+    if (toStatus === 'COUNTER_OFFER') return 'Встречное предложение банка';
+    if (toStatus === 'DOCS_REQUIRED') return 'Запрос подтверждающих документов';
+    if (toStatus === 'DOCS_UPLOADED' || (toStatus === 'MANUAL_REVIEW' && fromStatus === 'DOCS_REQUIRED')) {
+      return 'Документы загружены ➜ Передано риск-офицеру';
+    }
+    if (toStatus === 'MANUAL_REVIEW') return 'Передано на ручное рассмотрение';
+    if (toStatus === 'APPROVED') {
+      if (fromStatus === 'COUNTER_OFFER') return 'Встречное предложение принято клиентом';
+      if (fromStatus === 'MANUAL_REVIEW' || fromStatus === 'DOCS_UPLOADED') return 'Одобрено кредитным офицером';
+      return 'Заявка одобрена скорингом';
+    }
+    if (toStatus === 'PENDING_SIGNATURE') return 'Договор сформирован ➜ Ожидает подписания';
+    if (toStatus === 'ISSUED') return 'Договор подписан ПЭП ➜ Деньги зачислены';
+    if (toStatus === 'REJECTED') return 'Отказ в выдаче кредита';
+    if (toStatus === 'CANCELLED_BY_CLIENT') return 'Заявка отменена клиентом';
+    return `${fromStatus || 'Черновик'} ➜ ${toStatus}`;
+  };
+
+  // Timeline Status dot styling & icon
+  const getStatusDotStyle = (toStatus: string) => {
+    switch (toStatus) {
+      case 'APPROVED':
+      case 'ISSUED':
+        return {
+          bg: 'bg-emerald-500 text-white',
+          icon: '✓',
+        };
+      case 'COUNTER_OFFER':
+        return {
+          bg: 'bg-amber-500 text-white',
+          icon: '⚡',
+        };
+      case 'DOCS_REQUIRED':
+      case 'DOCS_UPLOADED':
+      case 'MANUAL_REVIEW':
+        return {
+          bg: 'bg-blue-500 text-white',
+          icon: '📋',
+        };
+      case 'REJECTED':
+      case 'CANCELLED_BY_CLIENT':
+        return {
+          bg: 'bg-red-500 text-white',
+          icon: '✕',
+        };
+      case 'DRAFT':
+      case 'DATA_ENRICHMENT':
+      case 'SCORING_IN_PROGRESS':
+      default:
+        return {
+          bg: 'bg-indigo-500 text-white animate-pulse',
+          icon: '⏳',
+        };
+    }
+  };
+
+  // Format log timestamp
+  const formatLogTime = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr);
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      const hours = pad(d.getHours());
+      const minutes = pad(d.getMinutes());
+      const seconds = pad(d.getSeconds());
+      const day = pad(d.getDate());
+      const month = pad(d.getMonth() + 1);
+      const year = d.getFullYear();
+      return `${hours}:${minutes}:${seconds}, ${day}.${month}.${year}`;
+    } catch {
+      return dateStr;
+    }
+  };
 
   const loadProducts = async () => {
     try {
@@ -67,6 +244,22 @@ export const ApplicationFlowScreen: React.FC<Props> = ({ initialAppId, onNavigat
   };
 
   const selectedProduct = products.find((p) => p.id === selectedProductId) || products[0];
+  const currentProductConfig = useMemo(() => getProductConfig(selectedProduct), [selectedProduct]);
+
+  const handleProductSelect = (p: Product) => {
+    setSelectedProductId(p.id);
+    const cfg = getProductConfig(p);
+    setAmount((prev) => {
+      if (prev < cfg.minAmount) return cfg.minAmount;
+      if (prev > cfg.maxAmount) return cfg.maxAmount;
+      return prev;
+    });
+    setTermMonths((prev) => {
+      if (prev < cfg.minTerm) return cfg.minTerm;
+      if (prev > cfg.maxTerm) return cfg.maxTerm;
+      return prev;
+    });
+  };
 
   // Calculate estimated annuity monthly payment
   const calculateEstimatedPayment = (pAmount: number, pTerm: number, pRate: number) => {
@@ -268,93 +461,139 @@ export const ApplicationFlowScreen: React.FC<Props> = ({ initialAppId, onNavigat
           <div className="card">
             <div className="card-title">1. Выбор кредитного продукта</div>
             <div className="grid-3" style={{ marginBottom: '1.5rem' }}>
-              {products.map((p) => (
-                <div
-                  key={p.id}
-                  onClick={() => {
-                    setSelectedProductId(p.id);
-                    if (amount < p.min_amount) setAmount(p.min_amount);
-                    if (amount > p.max_amount) setAmount(p.max_amount);
-                    if (termMonths < p.min_term_months) setTermMonths(p.min_term_months);
-                    if (termMonths > p.max_term_months) setTermMonths(p.max_term_months);
-                  }}
-                  style={{
-                    border: selectedProductId === p.id ? '2px solid var(--primary)' : '1px solid var(--border)',
-                    borderRadius: 'var(--radius)',
-                    padding: '1rem',
-                    cursor: 'pointer',
-                    background: selectedProductId === p.id ? 'var(--primary-light)' : 'white',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  <div style={{ fontWeight: 700, fontSize: '1rem', color: '#0f172a' }}>{p.name}</div>
-                  <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)', margin: '0.25rem 0' }}>
-                    от {p.interest_rate}%
+              {products.map((p) => {
+                const cfg = getProductConfig(p);
+                const isSelected = selectedProductId === p.id;
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => handleProductSelect(p)}
+                    style={{
+                      border: isSelected ? '2px solid #EF3124' : '1px solid var(--border)',
+                      borderRadius: 'var(--radius)',
+                      padding: '1rem',
+                      cursor: 'pointer',
+                      background: isSelected ? '#fef2f2' : 'white',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <div style={{ fontWeight: 700, fontSize: '1rem', color: '#0f172a' }}>{p.name}</div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: isSelected ? '#EF3124' : 'var(--primary)', margin: '0.25rem 0' }}>
+                      от {p.interest_rate}%
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      Лимит: до {formatMoney(cfg.maxAmount)}<br />
+                      Срок: от {cfg.minTerm} до {cfg.maxTerm} мес.
+                    </div>
                   </div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    Лимит: до {formatMoney(p.max_amount)}<br />
-                    Срок: от {p.min_term_months} до {p.max_term_months} мес.
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="card-title">2. Параметры кредита</div>
 
             <div className="grid-2">
               <div className="form-group">
-                <label className="form-label">
-                  Сумма кредита: <strong>{formatMoney(amount)}</strong>
-                </label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                  <label className="form-label" style={{ margin: 0, fontWeight: 600 }}>
+                    Сумма кредита:
+                  </label>
+                  <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--primary)' }}>
+                    {formatMoney(amount)}
+                  </span>
+                </div>
                 <input
                   type="range"
                   className="form-control"
-                  style={{ padding: '0.2rem' }}
-                  min={selectedProduct?.min_amount || 10000}
-                  max={selectedProduct?.max_amount || 30000000}
-                  step={50000}
+                  style={{ padding: '0.2rem', cursor: 'pointer' }}
+                  min={currentProductConfig.minAmount}
+                  max={currentProductConfig.maxAmount}
+                  step={currentProductConfig.stepAmount}
                   value={amount}
                   onChange={(e) => setAmount(Number(e.target.value))}
                 />
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                  {[500000, 1500000, 3000000, 5000000].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => setAmount(preset)}
-                    >
-                      {preset / 1000000} млн ₽
-                    </button>
-                  ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                  <span>{formatMoney(currentProductConfig.minAmount)}</span>
+                  <span>Лимит до {formatMoney(currentProductConfig.maxAmount)}</span>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                  {currentProductConfig.amountChips.map((chip) => {
+                    const isSelected = amount === chip.value;
+                    return (
+                      <button
+                        key={chip.value}
+                        type="button"
+                        className={`btn btn-sm ${
+                          isSelected
+                            ? 'bg-[#EF3124] text-white border-[#EF3124]'
+                            : 'btn-secondary'
+                        }`}
+                        style={{
+                          padding: '0.3rem 0.65rem',
+                          fontSize: '0.8rem',
+                          fontWeight: isSelected ? 700 : 500,
+                          backgroundColor: isSelected ? '#EF3124' : undefined,
+                          borderColor: isSelected ? '#EF3124' : undefined,
+                          color: isSelected ? '#ffffff' : undefined,
+                        }}
+                        onClick={() => setAmount(chip.value)}
+                      >
+                        {chip.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               <div className="form-group">
-                <label className="form-label">
-                  Срок кредита: <strong>{termMonths} мес.</strong>
-                </label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                  <label className="form-label" style={{ margin: 0, fontWeight: 600 }}>
+                    Срок кредита:
+                  </label>
+                  <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--primary)' }}>
+                    {termMonths} мес.
+                  </span>
+                </div>
                 <input
                   type="range"
                   className="form-control"
-                  style={{ padding: '0.2rem' }}
-                  min={selectedProduct?.min_term_months || 1}
-                  max={selectedProduct?.max_term_months || 36}
-                  step={1}
+                  style={{ padding: '0.2rem', cursor: 'pointer' }}
+                  min={currentProductConfig.minTerm}
+                  max={currentProductConfig.maxTerm}
+                  step={currentProductConfig.stepTerm}
                   value={termMonths}
                   onChange={(e) => setTermMonths(Number(e.target.value))}
                 />
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                  {[6, 12, 24, 36].map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => setTermMonths(t)}
-                    >
-                      {t} мес.
-                    </button>
-                  ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                  <span>{currentProductConfig.minTerm} мес.</span>
+                  <span>до {currentProductConfig.maxTerm} мес.</span>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                  {currentProductConfig.termChips.map((chip) => {
+                    const isSelected = termMonths === chip.value;
+                    return (
+                      <button
+                        key={chip.value}
+                        type="button"
+                        className={`btn btn-sm ${
+                          isSelected
+                            ? 'bg-[#EF3124] text-white border-[#EF3124]'
+                            : 'btn-secondary'
+                        }`}
+                        style={{
+                          padding: '0.3rem 0.65rem',
+                          fontSize: '0.8rem',
+                          fontWeight: isSelected ? 700 : 500,
+                          backgroundColor: isSelected ? '#EF3124' : undefined,
+                          borderColor: isSelected ? '#EF3124' : undefined,
+                          color: isSelected ? '#ffffff' : undefined,
+                        }}
+                        onClick={() => setTermMonths(chip.value)}
+                      >
+                        {chip.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -629,6 +868,56 @@ export const ApplicationFlowScreen: React.FC<Props> = ({ initialAppId, onNavigat
             >
               + Создать другую заявку
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Audit Timeline / Vertical Stepper */}
+      {currentApp && currentApp.status_logs && currentApp.status_logs.length > 0 && (
+        <div className="card" style={{ marginTop: '1.5rem' }}>
+          <div className="card-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <span style={{ fontSize: '1.25rem' }}>📜</span>
+              <span style={{ fontSize: '1.2rem', fontWeight: 800 }}>История рассмотрения и аудит заявки</span>
+            </div>
+            <span className="badge badge-secondary" style={{ fontSize: '0.8rem', padding: '0.3rem 0.65rem' }}>
+              Переходов: {currentApp.status_logs.length}
+            </span>
+          </div>
+
+          <div className="timeline-stepper">
+            {currentApp.status_logs.map((log, index) => {
+              const dot = getStatusDotStyle(log.to_status);
+              return (
+                <div key={log.id || index} className="timeline-step">
+                  <div className={`timeline-dot ${dot.bg}`}>
+                    {dot.icon}
+                  </div>
+                  <div className="timeline-content">
+                    <div className="timeline-header">
+                      <span className="timeline-title">
+                        {getStatusTransitionTitle(log.from_status, log.to_status, log.comment)}
+                      </span>
+                      <span className="timeline-time">
+                        {formatLogTime(log.created_at)}
+                      </span>
+                    </div>
+
+                    {log.from_status && (
+                      <div className="timeline-transition">
+                        Переход: <span>{log.from_status}</span> ➜ <strong>{log.to_status}</strong>
+                      </div>
+                    )}
+
+                    {log.comment && (
+                      <div className="timeline-comment">
+                        <MarkdownView content={log.comment} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

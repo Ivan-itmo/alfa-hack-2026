@@ -102,6 +102,10 @@ export const api = {
     return request(`/applications/${id}`);
   },
 
+  getApplications: async (): Promise<{ applications: Application[] }> => {
+    return request('/applications');
+  },
+
   submitApplication: async (id: number): Promise<Application> => {
     return request(`/applications/${id}/submit`, {
       method: 'POST',

@@ -103,6 +103,7 @@ func NewRouter(db *gorm.DB, tokens *auth.TokenManager, cfg ...*config.Config) *g
 	h.Scoring = scoring.New(appCfg.ScoringBaseURL)
 	client := r.Group("/api", middleware.AuthMiddleware(db, tokens), handlers.RequireRole(models.RoleClient))
 	client.GET("/products", h.Products)
+	client.GET("/applications", h.ListApplications)
 	client.POST("/applications", h.CreateApplication)
 	client.GET("/applications/:id", h.GetApplication)
 	client.POST("/applications/:id/submit", h.SubmitApplication)

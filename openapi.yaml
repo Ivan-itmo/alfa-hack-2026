@@ -159,6 +159,24 @@ paths:
                       $ref: '#/components/schemas/Product'
 
   /api/applications:
+    get:
+      tags:
+        - Applications
+      summary: Список всех кредитных заявок текущей компании
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Реестр кредитных заявок компании
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  applications:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Application'
     post:
       tags:
         - Applications

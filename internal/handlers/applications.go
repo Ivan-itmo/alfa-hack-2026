@@ -44,6 +44,30 @@ func RequireRole(role models.Role) gin.HandlerFunc {
 	}
 }
 func (h *Handler) Products(c *gin.Context) { c.JSON(200, gin.H{"products": models.Products()}) }
+func (h *Handler) ListApplications(c *gin.Context) {
+	var apps []models.Application
+	if err := h.applicationQuery(c, h.DB.WithContext(c.Request.Context())).
+		Preload("Company").
+		Preload("Documents").
+		Preload("StatusLogs", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at ASC, id ASC")
+		}).
+		Order("created_at DESC, id DESC").
+		Find(&apps).Error; err != nil {
+		fail(c, http.StatusInternalServerError, "Не удалось загрузить список заявок")
+		return
+	}
+	for i := range apps {
+		if apps[i].StatusLogs == nil {
+			apps[i].StatusLogs = make([]models.ApplicationStatusLog, 0)
+		}
+		if apps[i].Status == models.StatusCounterOffer {
+			apps[i].CounterAmount = apps[i].ApprovedAmount
+			apps[i].CounterTermMonths = apps[i].ApprovedTermMonths
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"applications": apps})
+}
 func (h *Handler) applicationQuery(c *gin.Context, db *gorm.DB) *gorm.DB {
 	user := c.MustGet(middleware.UserContextKey).(models.User)
 	if user.Role == models.RoleClient {

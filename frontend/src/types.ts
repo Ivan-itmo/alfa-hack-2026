@@ -55,12 +55,22 @@ export interface ApplicationDocument {
   created_at: string;
 }
 
+export interface ApplicationStatusLog {
+  id: number;
+  application_id: number;
+  from_status: string;
+  to_status: string;
+  comment: string;
+  created_at: string;
+}
+
 export interface Application {
   id: number;
   user_id: number;
   company_id: number;
   company?: Company;
   documents?: ApplicationDocument[];
+  status_logs?: ApplicationStatusLog[];
   product_id: number;
   purpose: string;
   status: ApplicationStatus;
@@ -85,7 +95,13 @@ export interface Application {
 export interface NewsArticle {
   id: number;
   title: string;
-  content: string;
+  summary: string;
+  content?: string;
+  category: string;
+  tag: string;
+  read_time: string;
+  date: string;
+  target_audience: string;
   target_okved?: string;
 }
 
@@ -94,4 +110,5 @@ export interface DashboardData {
   company_info: Company;
   active_application: Application | null;
   news_feed: NewsArticle[];
+  primary_target?: string;
 }

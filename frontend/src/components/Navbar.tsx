@@ -18,7 +18,7 @@ export const Navbar: React.FC<Props> = ({ user, activeScreen, onNavigate, onLogo
         </a>
 
         {user && user.role === 'client' && (
-          <nav style={{ display: 'flex', gap: '1rem' }}>
+          <nav style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <button
               className={`btn btn-sm ${activeScreen === 'dashboard' ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => onNavigate('dashboard')}
@@ -26,10 +26,22 @@ export const Navbar: React.FC<Props> = ({ user, activeScreen, onNavigate, onLogo
               Дашборд
             </button>
             <button
+              className={`btn btn-sm ${activeScreen === 'applications' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => onNavigate('applications')}
+            >
+              Мои заявки
+            </button>
+            <button
+              className={`btn btn-sm ${activeScreen === 'calculator' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => onNavigate('calculator')}
+            >
+              Калькулятор шансов
+            </button>
+            <button
               className={`btn btn-sm ${activeScreen === 'application' ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => onNavigate('application')}
             >
-              Кредитный конвейер
+              + Подать заявку
             </button>
           </nav>
         )}
