@@ -15,10 +15,13 @@ build/
 /coverage.out
 /tmp/*.json
 
-# Environment
+# Environment and secrets
 .env
 .env.*
 !.env.example
+*.conf
+wireguard/*.conf
+!wireguard/wg0.conf.example
 
 # Dependency directories
 vendor/

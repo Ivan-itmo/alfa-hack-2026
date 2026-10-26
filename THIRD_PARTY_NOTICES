@@ -51,9 +51,22 @@ This project (BizCredit AI — Умный кредитный кабинет пр
   - License: 2-Clause BSD-like License
   - https://nginx.org/LICENSE
 
+## 3. Python Scoring Microservice & AI Engine
+- **FastAPI / Pydantic / Uvicorn**
+  - License: MIT License
+  - Высокопроизводительный асинхронный микросервис скоринга и оценки кредитных рисков
+  - https://github.com/tiangolo/fastapi/blob/master/LICENSE
+- **HTTPX HTTP Client**
+  - License: BSD 3-Clause License
+  - https://github.com/encode/httpx/blob/master/LICENSE.md
+- **Google Gemma 4 (12B)**
+  - License: Open Weights / Gemma Terms of Use
+  - Локальный инференс открытой модели через OpenAI-совместимый эндпоинт (llama.cpp)
+  - https://ai.google.dev/gemma/terms
+
 ---
 
-## 3. Моделирование внешних сервисов (ФНС, БКИ, Федресурс)
+## 4. Моделирование внешних сервисов (ФНС, БКИ, Федресурс)
 
 В соответствии с требованиями и техническими ограничениями ТЗ хакатона:
 - Внешние государственные и межбанковские сервисы (API ФНС России, ЕГРЮЛ, сервисы Бюро кредитных историй / БКИ, проверка банкротств и исполнительных производств) **смоделированы локальными синтетическими моками и детерминированными бизнес-правилами**.
