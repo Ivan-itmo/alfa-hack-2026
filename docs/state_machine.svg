@@ -1,284 +1,181 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1300 900" width="100%" height="100%" style="background:#0b1120; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1850 820" width="100%" height="100%">
   <defs>
-    <!-- Gradients -->
-    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#ef3124"/>
-      <stop offset="100%" stop-color="#b91c1c"/>
-    </linearGradient>
-    <linearGradient id="approvedGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#059669"/>
-      <stop offset="100%" stop-color="#10b981"/>
-    </linearGradient>
-    <linearGradient id="issuedGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#047857"/>
-      <stop offset="100%" stop-color="#059669"/>
-    </linearGradient>
-    <linearGradient id="rejectedGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#b91c1c"/>
-      <stop offset="100%" stop-color="#ef4444"/>
-    </linearGradient>
-    <linearGradient id="scoringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#4338ca"/>
-      <stop offset="100%" stop-color="#6366f1"/>
-    </linearGradient>
-    <linearGradient id="manualGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#7c3aed"/>
-      <stop offset="100%" stop-color="#8b5cf6"/>
-    </linearGradient>
-    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#1e293b"/>
-      <stop offset="100%" stop-color="#0f172a"/>
-    </linearGradient>
-
-    <!-- Filters -->
-    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.4"/>
-    </filter>
-    <filter id="glowGreen" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#10b981" flood-opacity="0.5"/>
-    </filter>
-    <filter id="glowRed" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#ef4444" flood-opacity="0.4"/>
-    </filter>
-
-    <!-- Arrow Markers -->
-    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1 L 10 5 L 0 9 z" fill="#64748b"/>
+    <style>
+      .bg { fill: #0b0f19; }
+      .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 26px; font-weight: bold; fill: #ffffff; }
+      .subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; fill: #94a3b8; }
+      .box { rx: 12px; ry: 12px; stroke-width: 2px; }
+      .box-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; font-weight: bold; }
+      .box-desc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; }
+      .edge-label { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; font-weight: 600; fill: #cbd5e1; }
+      .section-box { rx: 16px; ry: 16px; fill: #131b2e; stroke: #1e293b; stroke-width: 1.5px; }
+      .section-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; font-weight: bold; letter-spacing: 1px; }
+      path { fill: none !important; }
+    </style>
+    <marker id="arr-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#EF3124"/>
     </marker>
-    <marker id="arrowRed" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1 L 10 5 L 0 9 z" fill="#ef4444"/>
+    <marker id="arr-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#10b981"/>
     </marker>
-    <marker id="arrowGreen" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1 L 10 5 L 0 9 z" fill="#10b981"/>
+    <marker id="arr-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#3b82f6"/>
     </marker>
-    <marker id="arrowAmber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1 L 10 5 L 0 9 z" fill="#f59e0b"/>
+    <marker id="arr-amber" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#f59e0b"/>
     </marker>
-    <marker id="arrowBlue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8"/>
+    <marker id="arr-gray" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#64748b"/>
+    </marker>
+    <marker id="arr-purple" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#8b5cf6"/>
     </marker>
   </defs>
 
-  <!-- Background grid pattern -->
-  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5" stroke-opacity="0.5"/>
-  </pattern>
-  <rect width="1300" height="900" fill="url(#grid)"/>
+  <!-- Фон -->
+  <rect width="100%" height="100%" class="bg" />
 
-  <!-- Title bar -->
-  <rect x="40" y="24" width="1220" height="60" rx="12" fill="url(#cardGrad)" stroke="#334155" filter="url(#shadow)"/>
-  <rect x="40" y="24" width="8" height="60" rx="4" fill="url(#headerGrad)"/>
-  <text x="65" y="52" fill="#ffffff" font-size="20" font-weight="700">Alfa Biz Credit AI — Finite State Machine (12 статусов заявки)</text>
-  <text x="65" y="72" fill="#94a3b8" font-size="12">Полная диаграмма переходов жизненного цикла кредитования МСБ • Соответствие требованиям Банка России</text>
+  <!-- Шапка -->
+  <rect x="30" y="25" width="6" height="42" fill="#EF3124" rx="3" />
+  <text x="50" y="48" class="title">Alfa Biz Credit AI — Finite State Machine (12 состояний заявки)</text>
+  <text x="50" y="68" class="subtitle">Полный жизненный цикл кредитования малого бизнеса • Архитектура XAI и соответствие нормам Банка России</text>
 
-  <!-- Zones / Lanes -->
-  <!-- Lane 1: Клиентский поток -->
-  <rect x="40" y="105" width="280" height="760" rx="12" fill="#0f172a" fill-opacity="0.6" stroke="#1e293b"/>
-  <text x="55" y="130" fill="#ef3124" font-size="12" font-weight="700" letter-spacing="1">КЛИЕНТСКИЙ КОНТУР</text>
+  <!-- Зоны контуров -->
+  <rect x="30" y="90" width="480" height="700" class="section-box" />
+  <text x="50" y="120" class="section-title" fill="#EF3124">КЛИЕНТСКИЙ КОНТУР И КАЛЬКУЛЯТОР</text>
 
-  <!-- Lane 2: Автоматический AI-скоринг -->
-  <rect x="340" y="105" width="450" height="760" rx="12" fill="#0f172a" fill-opacity="0.6" stroke="#1e293b"/>
-  <text x="355" y="130" fill="#6366f1" font-size="12" font-weight="700" letter-spacing="1">АВТОМАТИЧЕСКИЙ AI-СКОРИНГ (ML &amp; LLM)</text>
+  <rect x="540" y="90" width="530" height="700" class="section-box" />
+  <text x="560" y="120" class="section-title" fill="#60a5fa">АВТОМАТИЧЕСКИЙ AI-СКОРИНГ</text>
 
-  <!-- Lane 3: Андеррайтинг и Выдача -->
-  <rect x="810" y="105" width="450" height="760" rx="12" fill="#0f172a" fill-opacity="0.6" stroke="#1e293b"/>
-  <text x="825" y="130" fill="#10b981" font-size="12" font-weight="700" letter-spacing="1">АНДЕРРАЙТИНГ, ПОДПИСАНИЕ И ВЫДАЧА</text>
+  <rect x="1100" y="90" width="720" height="700" class="section-box" />
+  <text x="1120" y="120" class="section-title" fill="#34d399">АНДЕРРАЙТИНГ, РЕШЕНИЕ И ВЫДАЧА</text>
 
-  <!-- 1. START & DRAFT -->
-  <circle cx="180" cy="180" r="10" fill="#ef3124" filter="url(#shadow)"/>
-  <path d="M 180 190 L 180 220" stroke="#ef3124" stroke-width="2" marker-end="url(#arrowRed)"/>
-  <text x="188" y="210" fill="#94a3b8" font-size="10">POST /api/applications</text>
+  <!-- Контур 1 -->
+  <rect x="60" y="160" width="180" height="65" class="box" fill="#1e293b" stroke="#475569" />
+  <text x="80" y="188" class="box-title" fill="#f8fafc">ЭКРАН ВХОДА</text>
+  <text x="80" y="208" class="box-desc" fill="#94a3b8">Выбор сценария доступа</text>
 
-  <!-- State 1: DRAFT -->
-  <g id="state-draft" transform="translate(80, 225)">
-    <rect width="200" height="60" rx="10" fill="url(#cardGrad)" stroke="#475569" stroke-width="1.5" filter="url(#shadow)"/>
-    <circle cx="20" cy="30" r="6" fill="#94a3b8"/>
-    <text x="35" y="28" fill="#f8fafc" font-size="14" font-weight="700">1. DRAFT</text>
-    <text x="35" y="46" fill="#94a3b8" font-size="11">Черновик заявки клиента</text>
-  </g>
+  <rect x="60" y="270" width="180" height="65" class="box" fill="#2d1519" stroke="#EF3124" />
+  <text x="80" y="298" class="box-title" fill="#fca5a5">ДЕМО-ВХОД В 1 КЛИК</text>
+  <text x="80" y="318" class="box-desc" fill="#f87171">client1 / client2 / client3</text>
 
-  <!-- Transition DRAFT -> DATA_ENRICHMENT -->
-  <path d="M 280 255 L 370 255" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrowBlue)"/>
-  <text x="288" y="248" fill="#38bdf8" font-size="10" font-weight="600">POST /submit</text>
+  <rect x="290" y="160" width="200" height="75" class="box" fill="#1e293b" stroke="#cbd5e1" />
+  <text x="310" y="190" class="box-title" fill="#ffffff">ГЛАВНЫЙ ДАШБОРД</text>
+  <text x="310" y="212" class="box-desc" fill="#94a3b8">32 статьи, профиль компании</text>
 
-  <!-- State 2: DATA_ENRICHMENT -->
-  <g id="state-enrichment" transform="translate(370, 225)">
-    <rect width="200" height="60" rx="10" fill="url(#cardGrad)" stroke="#0ea5e9" stroke-width="1.5" filter="url(#shadow)"/>
-    <circle cx="20" cy="30" r="6" fill="#0ea5e9"/>
-    <text x="35" y="28" fill="#f8fafc" font-size="13" font-weight="700">2. DATA_ENRICHMENT</text>
-    <text x="35" y="46" fill="#38bdf8" font-size="11">Обогащение из ФНС / БКИ</text>
-  </g>
+  <rect x="290" y="270" width="200" height="65" class="box" fill="#1e293b" stroke="#475569" />
+  <text x="310" y="298" class="box-title" fill="#f8fafc">КАЛЬКУЛЯТОР DSTI</text>
+  <text x="310" y="318" class="box-desc" fill="#94a3b8">Оценка платежа и шансов</text>
 
-  <!-- Transition DATA_ENRICHMENT -> SCORING_IN_PROGRESS -->
-  <path d="M 470 285 L 470 330" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow)"/>
+  <!-- Контур 2 -->
+  <rect x="570" y="160" width="190" height="65" class="box" fill="#1e293b" stroke="#64748b" />
+  <text x="590" y="188" class="box-title" fill="#f8fafc">1. DRAFT</text>
+  <text x="590" y="208" class="box-desc" fill="#94a3b8">Параметры и цель кредита</text>
 
-  <!-- State 3: SCORING_IN_PROGRESS -->
-  <g id="state-scoring" transform="translate(360, 335)">
-    <rect width="220" height="70" rx="12" fill="url(#scoringGrad)" stroke="#818cf8" stroke-width="2" filter="url(#shadow)"/>
-    <circle cx="22" cy="35" r="7" fill="#ffffff"/>
-    <text x="38" y="30" fill="#ffffff" font-size="13" font-weight="800">3. SCORING_IN_PROGRESS</text>
-    <text x="38" y="48" fill="#e0e7ff" font-size="11">ML: DSTI, Балл, Стоп-факторы</text>
-    <text x="38" y="62" fill="#c7d2fe" font-size="10">LLM: генерация объяснения</text>
-  </g>
+  <rect x="570" y="270" width="190" height="65" class="box" fill="#1e293b" stroke="#64748b" />
+  <text x="590" y="298" class="box-title" fill="#f8fafc">2. DATA_ENRICHMENT</text>
+  <text x="590" y="318" class="box-desc" fill="#94a3b8">Моки ФНС и выписки БКИ</text>
 
-  <!-- Outcomes from SCORING_IN_PROGRESS -->
-  <!-- 1) -> APPROVED -->
-  <path d="M 580 355 L 850 355" stroke="#10b981" stroke-width="2" marker-end="url(#arrowGreen)"/>
-  <rect x="630" y="340" width="165" height="20" rx="4" fill="#064e3b" stroke="#059669" stroke-width="1"/>
-  <text x="635" y="354" fill="#34d399" font-size="10" font-weight="600">Скор ≥ 650, DSTI ≤ 35%</text>
+  <rect x="810" y="250" width="230" height="105" class="box" fill="#2d1519" stroke="#EF3124" />
+  <circle cx="830" cy="275" r="5" fill="#EF3124" />
+  <text x="845" y="280" class="box-title" fill="#fca5a5">3. SCORING_IN_PROGRESS</text>
+  <text x="830" y="304" class="box-desc" fill="#e2e8f0">• Математика DSTI (по ЦБ)</text>
+  <text x="830" y="322" class="box-desc" fill="#e2e8f0">• XAI Gemma 4 12B (Explainable)</text>
+  <text x="830" y="340" class="box-desc" fill="#e2e8f0">• Анализ 5 веток исходов</text>
 
-  <!-- 2) -> COUNTER_OFFER -->
-  <path d="M 470 405 L 470 480" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrowAmber)"/>
-  <rect x="475" y="430" width="155" height="20" rx="4" fill="#451a03" stroke="#b45309" stroke-width="1"/>
-  <text x="480" y="444" fill="#fbbf24" font-size="10" font-weight="600">DSTI &gt; 35% (Снизить сумму)</text>
+  <!-- Контур 3: Ветки скоринга -->
+  <rect x="1130" y="140" width="190" height="65" class="box" fill="#1e3a2f" stroke="#10b981" />
+  <text x="1145" y="168" class="box-title" fill="#6ee7b7">4. APPROVED ★</text>
+  <text x="1145" y="188" class="box-desc" fill="#a7f3d0">DSTI ≤ 35%, скоринг ≥ 650</text>
 
-  <!-- 3) -> DOCS_REQUIRED -->
-  <path d="M 360 380 L 220 380 L 220 480" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrowAmber)"/>
-  <rect x="225" y="420" width="130" height="20" rx="4" fill="#451a03" stroke="#b45309" stroke-width="1"/>
-  <text x="230" y="434" fill="#fbbf24" font-size="10" font-weight="600">Возраст &lt; 3 мес (Стартап)</text>
+  <rect x="1130" y="240" width="190" height="65" class="box" fill="#3b2d18" stroke="#f59e0b" />
+  <text x="1145" y="268" class="box-title" fill="#fde68a">5. COUNTER_OFFER</text>
+  <text x="1145" y="288" class="box-desc" fill="#fef3c7">Безопасный лимит (DSTI 35%)</text>
 
-  <!-- 4) -> REJECTED -->
-  <path d="M 470 405 L 470 450 L 730 450 L 730 735" stroke="#ef4444" stroke-width="2" marker-end="url(#arrowRed)"/>
-  <rect x="580" y="460" width="160" height="20" rx="4" fill="#450a0a" stroke="#b91c1c" stroke-width="1"/>
-  <text x="585" y="474" fill="#f87171" font-size="10" font-weight="600">Банкротство / Просрочка &gt; 30</text>
+  <rect x="1130" y="340" width="190" height="65" class="box" fill="#172554" stroke="#3b82f6" />
+  <text x="1145" y="368" class="box-title" fill="#93c5fd">6. DOCS_REQUIRED</text>
+  <text x="1145" y="388" class="box-desc" fill="#bfdbfe">Возраст &lt; 6 мес (Стартап)</text>
 
-  <!-- 5) -> MANUAL_REVIEW -->
-  <path d="M 580 385 L 850 490" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrow)"/>
-  <rect x="650" y="415" width="170" height="20" rx="4" fill="#2e1065" stroke="#6d28d9" stroke-width="1"/>
-  <text x="655" y="429" fill="#c084fc" font-size="10" font-weight="600">Пограничный скор 500-650</text>
+  <rect x="1130" y="440" width="190" height="55" class="box" fill="#1e293b" stroke="#3b82f6" />
+  <text x="1145" y="465" class="box-title" fill="#93c5fd">7. DOCS_UPLOADED</text>
+  <text x="1145" y="483" class="box-desc" fill="#94a3b8">Файлы прикреплены в БД</text>
 
-  <!-- State 5: COUNTER_OFFER -->
-  <g id="state-counter" transform="translate(370, 485)">
-    <rect width="200" height="60" rx="10" fill="url(#cardGrad)" stroke="#f59e0b" stroke-width="1.5" filter="url(#shadow)"/>
-    <circle cx="20" cy="30" r="6" fill="#f59e0b"/>
-    <text x="35" y="28" fill="#f8fafc" font-size="13" font-weight="700">5. COUNTER_OFFER</text>
-    <text x="35" y="46" fill="#fbbf24" font-size="11">Встречное предложение</text>
-  </g>
+  <rect x="1130" y="530" width="190" height="65" class="box" fill="#2e1065" stroke="#8b5cf6" />
+  <text x="1145" y="558" class="box-title" fill="#c4b5fd">8. MANUAL_REVIEW</text>
+  <text x="1145" y="578" class="box-desc" fill="#ddd6fe">Досье кредитного офицера</text>
 
-  <!-- Counter offer acceptance/rejection -->
-  <path d="M 570 515 L 850 375" stroke="#10b981" stroke-width="2" stroke-dasharray="4" marker-end="url(#arrowGreen)"/>
-  <text x="630" y="525" fill="#34d399" font-size="10" font-weight="600">POST /counter-offer (accept)</text>
+  <rect x="1130" y="640" width="190" height="65" class="box" fill="#3f1218" stroke="#ef4444" />
+  <text x="1145" y="668" class="box-title" fill="#fca5a5">9. REJECTED ✕</text>
+  <text x="1145" y="688" class="box-desc" fill="#fecaca">Банкротство / Стоп-факторы</text>
 
-  <path d="M 470 545 L 470 735" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
-  <text x="475" y="630" fill="#94a3b8" font-size="10" font-weight="600">POST /counter-offer (reject)</text>
+  <!-- Колонка 2 (Подписание и Отмена) -->
+  <rect x="1360" y="140" width="190" height="65" class="box" fill="#1e293b" stroke="#f1f5f9" />
+  <text x="1375" y="168" class="box-title" fill="#ffffff">10. PENDING_SIGN</text>
+  <text x="1375" y="188" class="box-desc" fill="#cbd5e1">Код ПЭП: 1234 (без SMS)</text>
 
-  <!-- State 6: DOCS_REQUIRED -->
-  <g id="state-docs-req" transform="translate(80, 485)">
-    <rect width="200" height="60" rx="10" fill="url(#cardGrad)" stroke="#f59e0b" stroke-width="1.5" filter="url(#shadow)"/>
-    <circle cx="20" cy="30" r="6" fill="#f59e0b"/>
-    <text x="35" y="28" fill="#f8fafc" font-size="13" font-weight="700">6. DOCS_REQUIRED</text>
-    <text x="35" y="46" fill="#fbbf24" font-size="11">Запрос отчетности / баланса</text>
-  </g>
+  <rect x="1360" y="240" width="190" height="65" class="box" fill="#1e293b" stroke="#64748b" />
+  <text x="1375" y="268" class="box-title" fill="#f8fafc">12. CANCELLED</text>
+  <text x="1375" y="288" class="box-desc" fill="#94a3b8">Отказ клиента от условий</text>
 
-  <!-- Transition DOCS_REQUIRED -> DOCS_UPLOADED -->
-  <path d="M 180 545 L 180 610" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrowBlue)"/>
-  <text x="188" y="580" fill="#38bdf8" font-size="10" font-weight="600">POST /documents</text>
+  <!-- Колонка 3: ФИНАЛ ВЫДАЧИ (Смещен правее) -->
+  <rect x="1590" y="135" width="205" height="75" class="box" fill="#1e3a2f" stroke="#10b981" stroke-width="3" />
+  <text x="1605" y="165" class="box-title" fill="#34d399">11. ISSUED ★</text>
+  <text x="1605" y="188" class="box-desc" fill="#6ee7b7">Кредит выдан!</text>
+  <text x="1605" y="202" class="box-desc" fill="#a7f3d0">Баланс пополнен мгновенно</text>
 
-  <!-- State 7: DOCS_UPLOADED -->
-  <g id="state-docs-upl" transform="translate(80, 615)">
-    <rect width="200" height="60" rx="10" fill="url(#cardGrad)" stroke="#38bdf8" stroke-width="1.5" filter="url(#shadow)"/>
-    <circle cx="20" cy="30" r="6" fill="#38bdf8"/>
-    <text x="35" y="28" fill="#f8fafc" font-size="13" font-weight="700">7. DOCS_UPLOADED</text>
-    <text x="35" y="46" fill="#7dd3fc" font-size="11">Документы прикреплены</text>
-  </g>
+  <!-- СВЯЗИ И СТРЕЛКИ -->
+  <!-- Вход -> Дашборд -->
+  <path d="M 150 225 L 150 270" stroke="#EF3124" stroke-width="2" marker-end="url(#arr-red)" />
+  <path d="M 240 192.5 L 290 192.5" stroke="#cbd5e1" stroke-width="2" marker-end="url(#arr-gray)" />
+  <path d="M 240 302.5 L 265 302.5 L 265 215 L 290 215" stroke="#EF3124" stroke-width="2" marker-end="url(#arr-red)" />
+  <path d="M 390 235 L 390 270" stroke="#64748b" stroke-width="2" marker-end="url(#arr-gray)" />
 
-  <!-- Transition DOCS_UPLOADED -> MANUAL_REVIEW -->
-  <path d="M 280 645 L 850 520" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrow)"/>
-  <rect x="350" y="630" width="220" height="20" rx="4" fill="#2e1065" stroke="#6d28d9" stroke-width="1"/>
-  <text x="355" y="644" fill="#c084fc" font-size="10" font-weight="600">documents_uploaded: true → Андеррайтер</text>
+  <!-- Дашборд -> Заявка -> Скоринг -->
+  <path d="M 490 192.5 L 570 192.5" stroke="#cbd5e1" stroke-width="2" marker-end="url(#arr-gray)" />
+  <text x="500" y="185" class="edge-label">Подать</text>
+  <path d="M 490 302.5 L 530 302.5 L 530 210 L 570 210" stroke="#64748b" stroke-width="2" marker-end="url(#arr-gray)" />
+  <path d="M 665 225 L 665 270" stroke="#64748b" stroke-width="2" marker-end="url(#arr-gray)" />
+  <path d="M 760 302.5 L 810 302.5" stroke="#EF3124" stroke-width="2" marker-end="url(#arr-red)" />
+  <text x="765" y="295" class="edge-label" fill="#EF3124">POST /submit</text>
 
-  <!-- State 8: MANUAL_REVIEW -->
-  <g id="state-manual" transform="translate(850, 485)">
-    <rect width="240" height="70" rx="12" fill="url(#manualGrad)" stroke="#c084fc" stroke-width="2" filter="url(#shadow)"/>
-    <circle cx="22" cy="35" r="7" fill="#ffffff"/>
-    <text x="38" y="30" fill="#ffffff" font-size="13" font-weight="800">8. MANUAL_REVIEW</text>
-    <text x="38" y="48" fill="#f3e8ff" font-size="11">Кабинет кредитного офицера</text>
-    <text x="38" y="62" fill="#e9d5ff" font-size="10">Ручная верификация и риск-анализ</text>
-  </g>
+  <!-- СТРОГО ОРТОГОНАЛЬНЫЕ СТРЕЛКИ ИЗ 3. SCORING_IN_PROGRESS (90 ГРАДУСОВ) -->
+  <!-- Ветка 1: В Approved (внешняя шина x=1085) -->
+  <path d="M 1040 270 L 1085 270 L 1085 172.5 L 1130 172.5" stroke="#10b981" stroke-width="2" marker-end="url(#arr-green)" />
+  <text x="1048" y="162" class="edge-label" fill="#10b981">DSTI ≤ 35%</text>
 
-  <!-- Decisions from MANUAL_REVIEW -->
-  <!-- 1) Officer APPROVED -->
-  <path d="M 970 485 L 970 395" stroke="#10b981" stroke-width="2" marker-end="url(#arrowGreen)"/>
-  <text x="978" y="440" fill="#34d399" font-size="10" font-weight="600">Decision: APPROVED</text>
+  <!-- Ветка 2: В Counter Offer (внутренняя шина x=1065) -->
+  <path d="M 1040 290 L 1065 290 L 1065 272.5 L 1130 272.5" stroke="#f59e0b" stroke-width="2" marker-end="url(#arr-amber)" />
+  <text x="1045" y="262" class="edge-label" fill="#f59e0b">DSTI > 55%</text>
 
-  <!-- 2) Officer REJECTED -->
-  <path d="M 970 555 L 970 735" stroke="#ef4444" stroke-width="2" marker-end="url(#arrowRed)"/>
-  <text x="978" y="650" fill="#f87171" font-size="10" font-weight="600">Decision: REJECTED</text>
+  <!-- Ветка 3: В Docs Required (внутренняя шина x=1065) -->
+  <path d="M 1040 315 L 1065 315 L 1065 372.5 L 1130 372.5" stroke="#3b82f6" stroke-width="2" marker-end="url(#arr-blue)" />
+  <text x="1048" y="362" class="edge-label" fill="#3b82f6">&lt; 6 мес</text>
 
-  <!-- 3) Officer COUNTER_OFFER -->
-  <path d="M 850 515 L 570 515" stroke="#f59e0b" stroke-width="2" stroke-dasharray="3" marker-end="url(#arrowAmber)"/>
+  <!-- Ветка 4: В Rejected (внешняя шина x=1085) -->
+  <path d="M 1040 335 L 1085 335 L 1085 672.5 L 1130 672.5" stroke="#ef4444" stroke-width="2" marker-end="url(#arr-red)" />
+  <text x="1045" y="520" class="edge-label" fill="#ef4444">Стоп-факторы</text>
 
-  <!-- 4) Officer DOCS_REQUIRED -->
-  <path d="M 850 545 L 280 515" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="3" marker-end="url(#arrowAmber)"/>
+  <!-- Документы и ручной андеррайтинг -->
+  <path d="M 1225 405 L 1225 440" stroke="#3b82f6" stroke-width="2" marker-end="url(#arr-blue)" />
+  <path d="M 1225 495 L 1225 530" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arr-purple)" />
+  <path d="M 1320 562.5 L 1345 562.5 L 1345 190 L 1320 190" stroke="#10b981" stroke-width="2" marker-end="url(#arr-green)" />
+  <text x="1350" y="380" class="edge-label" fill="#10b981">Одобрено</text>
+  <path d="M 1225 595 L 1225 640" stroke="#ef4444" stroke-width="2" marker-end="url(#arr-red)" />
 
-  <!-- State 4: APPROVED -->
-  <g id="state-approved" transform="translate(850, 325)">
-    <rect width="240" height="70" rx="12" fill="url(#approvedGrad)" stroke="#34d399" stroke-width="2" filter="url(#glowGreen)"/>
-    <circle cx="22" cy="35" r="7" fill="#ffffff"/>
-    <text x="38" y="30" fill="#ffffff" font-size="14" font-weight="800">4. APPROVED</text>
-    <text x="38" y="48" fill="#ecfdf5" font-size="11">Кредит одобрен банком</text>
-    <text x="38" y="62" fill="#d1fae5" font-size="10">Лимит зафиксирован на 30 дней</text>
-  </g>
+  <!-- Counter-Offer ветки -->
+  <path d="M 1225 240 L 1225 205" stroke="#10b981" stroke-width="2" marker-end="url(#arr-green)" />
+  <text x="1232" y="225" class="edge-label" fill="#10b981">Принять</text>
+  <path d="M 1320 272.5 L 1360 272.5" stroke="#64748b" stroke-width="2" marker-end="url(#arr-gray)" />
+  <text x="1322" y="265" class="edge-label">Отказ</text>
 
-  <!-- Transition APPROVED -> PENDING_SIGNATURE -->
-  <path d="M 1090 360 L 1140 360 L 1140 480" stroke="#06b6d4" stroke-width="2" marker-end="url(#arrow)"/>
-  <text x="1100" y="410" fill="#22d3ee" font-size="10" font-weight="600">К подписанию</text>
+  <!-- ЗОЛОТОЙ ПУТЬ ПОДПИСАНИЯ И ВЫДАЧИ (СТРОГО НАПРАВО) -->
+  <path d="M 1320 172.5 L 1360 172.5" stroke="#10b981" stroke-width="2" marker-end="url(#arr-green)" />
+  <text x="1322" y="165" class="edge-label" fill="#10b981">Договор</text>
 
-  <!-- State 10: PENDING_SIGNATURE -->
-  <g id="state-pending-sign" transform="translate(1040, 485)">
-    <rect width="200" height="60" rx="10" fill="url(#cardGrad)" stroke="#06b6d4" stroke-width="1.5" filter="url(#shadow)"/>
-    <circle cx="20" cy="30" r="6" fill="#06b6d4"/>
-    <text x="35" y="26" fill="#f8fafc" font-size="12" font-weight="700">10. PENDING_SIGNATURE</text>
-    <text x="35" y="44" fill="#67e8f9" font-size="10">Ожидание SMS-кода 1234</text>
-  </g>
+  <path d="M 1550 172.5 L 1590 172.5" stroke="#10b981" stroke-width="3" marker-end="url(#arr-green)" />
+  <text x="1552" y="165" class="edge-label" fill="#34d399">ПЭП 1234</text>
 
-  <!-- Transition PENDING_SIGNATURE -> ISSUED -->
-  <path d="M 1140 545 L 1140 735" stroke="#10b981" stroke-width="2.5" marker-end="url(#arrowGreen)"/>
-  <rect x="1065" y="620" width="150" height="24" rx="4" fill="#064e3b" stroke="#059669" stroke-width="1"/>
-  <text x="1070" y="636" fill="#34d399" font-size="10" font-weight="700">POST /sign (код 1234)</text>
-
-  <!-- State 11: ISSUED (Terminal 1) -->
-  <g id="state-issued" transform="translate(1040, 740)">
-    <rect width="200" height="75" rx="14" fill="url(#issuedGrad)" stroke="#34d399" stroke-width="3" filter="url(#glowGreen)"/>
-    <!-- Checkmark icon -->
-    <circle cx="28" cy="37" r="12" fill="#ffffff" fill-opacity="0.2"/>
-    <path d="M 22 37 L 26 41 L 34 33" stroke="#ffffff" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-    <text x="48" y="32" fill="#ffffff" font-size="15" font-weight="900">11. ISSUED ★</text>
-    <text x="48" y="50" fill="#ecfdf5" font-size="11">Кредит выдан!</text>
-    <text x="48" y="66" fill="#a7f3d0" font-size="10">Баланс пополнен мгновенно</text>
-  </g>
-  <circle cx="1140" cy="840" r="8" fill="#10b981"/>
-  <circle cx="1140" cy="840" r="12" fill="none" stroke="#10b981" stroke-width="2"/>
-  <path d="M 1140 815 L 1140 828" stroke="#10b981" stroke-width="2"/>
-
-  <!-- State 9: REJECTED (Terminal 2) -->
-  <g id="state-rejected" transform="translate(640, 740)">
-    <rect width="200" height="75" rx="14" fill="url(#rejectedGrad)" stroke="#f87171" stroke-width="2" filter="url(#glowRed)"/>
-    <!-- Cross icon -->
-    <circle cx="28" cy="37" r="12" fill="#ffffff" fill-opacity="0.2"/>
-    <path d="M 23 32 L 33 42 M 33 32 L 23 42" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
-    <text x="48" y="32" fill="#ffffff" font-size="14" font-weight="900">9. REJECTED ✖</text>
-    <text x="48" y="50" fill="#fee2e2" font-size="11">Отказ в кредите</text>
-    <text x="48" y="66" fill="#fca5a5" font-size="10">XAI-объяснение + рекомендации</text>
-  </g>
-  <circle cx="740" cy="840" r="8" fill="#ef4444"/>
-  <circle cx="740" cy="840" r="12" fill="none" stroke="#ef4444" stroke-width="2"/>
-  <path d="M 740 815 L 740 828" stroke="#ef4444" stroke-width="2"/>
-
-  <!-- State 12: CANCELLED_BY_CLIENT (Terminal 3) -->
-  <g id="state-cancelled" transform="translate(360, 740)">
-    <rect width="240" height="75" rx="14" fill="url(#cardGrad)" stroke="#475569" stroke-width="2" filter="url(#shadow)"/>
-    <circle cx="28" cy="37" r="12" fill="#64748b" fill-opacity="0.3"/>
-    <path d="M 22 37 L 34 37" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
-    <text x="48" y="32" fill="#cbd5e1" font-size="13" font-weight="800">12. CANCELLED_BY_CLIENT</text>
-    <text x="48" y="50" fill="#94a3b8" font-size="11">Отзыв заявки клиентом</text>
-    <text x="48" y="66" fill="#64748b" font-size="10">Отказ от оффера / отмена</text>
-  </g>
-  <circle cx="480" cy="840" r="8" fill="#64748b"/>
-  <circle cx="480" cy="840" r="12" fill="none" stroke="#64748b" stroke-width="2"/>
-  <path d="M 480 815 L 480 828" stroke="#64748b" stroke-width="2"/>
-
-  <!-- APPROVED -> CANCELLED -->
-  <path d="M 850 375 L 330 375 L 330 775 L 360 775" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4" marker-end="url(#arrow)"/>
-
+  <!-- Отмена из экрана подписания -->
+  <path d="M 1455 205 L 1455 240" stroke="#64748b" stroke-width="2" marker-end="url(#arr-gray)" />
+  <text x="1460" y="225" class="edge-label">Передумал</text>
 </svg>
